@@ -24,8 +24,8 @@ function PaymentSuccessContent() {
         console.log("[Success Page] Redirect Parameters:", params);
     }, [searchParams]);
 
-    const authKey = searchParams.get("authKey");
-    const customerKey = searchParams.get("customerKey");
+    const authKey = searchParams.get("authKey")?.trim();
+    const customerKey = searchParams.get("customerKey")?.trim();
     const plan = searchParams.get("plan");
 
     // 일반 결제 결과 파라미터들
@@ -43,7 +43,13 @@ function PaymentSuccessContent() {
             const isStandardPayment = paymentKey && orderId && amount;
 
             if (!isBillingAuth && !isStandardPayment && authKey !== "test") {
-                console.error("[Success Page] Missing parameters:", { authKey, customerKey, paymentKey, orderId, amount });
+                console.error("[Success Page] Missing parameters for activation:", {
+                    authKey: !!authKey,
+                    customerKey: !!customerKey,
+                    paymentKey: !!paymentKey,
+                    orderId: !!orderId,
+                    amount: !!amount
+                });
                 setStatus("error");
                 setErrorMessage("필수 결제 정보가 누락되었습니다. (존재하지 않는 정보입니다)");
                 return;
@@ -61,7 +67,12 @@ function PaymentSuccessContent() {
 
             try {
                 if (isBillingAuth) {
-                    console.log("[Success Page] Starting billing key issuance...");
+                    console.log("[Success Page] Initiating billing key issuance with parameters:", {
+                        authKey: authKey?.substring(0, 10) + "...",
+                        customerKey,
+                        plan
+                    });
+
                     // 1. 빌링키 발급 및 저장
                     const billingRes = await fetch("/api/payments/billing-key", {
                         method: "POST",
@@ -71,11 +82,11 @@ function PaymentSuccessContent() {
 
                     const billingData = await billingRes.json();
                     if (!billingRes.ok) {
-                        console.error("[Success Page] Billing Key Error:", billingData);
+                        console.error("[Success Page] Billing Key API Call Failed:", billingData);
                         throw new Error(billingData.error || "빌링키 발급에 실패했습니다.");
                     }
 
-                    console.log("[Success Page] Billing key issued. Confirming first payment...");
+                    console.log("[Success Page] Billing key response success. Now confirming payment...");
                     // 2. 첫 결제 승인
                     const confirmRes = await fetch("/api/payments/confirm", {
                         method: "POST",
@@ -85,10 +96,12 @@ function PaymentSuccessContent() {
 
                     const confirmData = await confirmRes.json();
                     if (!confirmRes.ok) {
-                        console.error("[Success Page] Payment Confirm Error:", confirmData);
+                        console.error("[Success Page] Payment Confirm API Call Failed:", confirmData);
                         throw new Error(confirmData.error || "결제 승인에 실패했습니다.");
                     }
+                    console.log("[Success Page] Payment confirm success.");
                 } else if (isStandardPayment) {
+
                     // 일반 결제인 경우 (현재 마케팅 요정은 빌링 위주이므로 로그만 남김)
                     console.log("[Success Page] Standard payment detected, but billing flow was expected.", { paymentKey, orderId });
                 }

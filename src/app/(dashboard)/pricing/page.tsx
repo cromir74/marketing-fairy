@@ -65,6 +65,7 @@ export default function PricingPage() {
             const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY);
 
             // 정기결제의 경우 빌링 등록창을 띄웁니다.
+            console.log(`[Pricing Page] Initializing payment with customerKey: ${user.id}`);
             const payment = tossPayments.payment({ customerKey: user.id });
 
             // successUrl에 플랜 정보를 전달하여 후속 처리(빌링키 발급 및 첫 결제)에서 사용합니다.
