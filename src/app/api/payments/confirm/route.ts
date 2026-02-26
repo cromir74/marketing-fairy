@@ -18,7 +18,11 @@ export async function POST(request: NextRequest) {
             .single();
 
         if (subError || !subscription?.billing_key) {
-            return NextResponse.json({ error: "Billing key not found for user" }, { status: 404 });
+            console.error(`[Confirm Payment] Billing key not found for user: ${userId}. Error:`, subError);
+            return NextResponse.json({
+                error: "Billing key not found for user",
+                message: "빌링키를 찾을 수 없습니다. 결제 수단 등록이 선행되어야 합니다."
+            }, { status: 404 });
         }
 
         const billingKey = subscription.billing_key;
@@ -109,7 +113,10 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[Payment Confirm Error]", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error(`[Payment Confirm Error] User: ${userId}, Plan: ${plan}:`, error);
+        return NextResponse.json({
+            error: error.message || "Internal Server Error",
+            detail: "DB 업데이트 또는 승인 프로세스 중 오류가 발생했습니다."
+        }, { status: 500 });
     }
 }
