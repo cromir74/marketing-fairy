@@ -1,0 +1,1 @@
+{"ROOT_QUERY":{"__typename":"Query","user":{"__typename":"UserResult","partnerHashedIdNo":null,"myplace":{"__typename":"MyPlaceUserInfo","profile":{"__typename":"MyPlaceProfile","imageUrl":null,"borderImageUrl":null,"myplaceId":null,"myplaceNickname":null}}}}}

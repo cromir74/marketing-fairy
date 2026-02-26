@@ -1,0 +1,44 @@
+{
+  "name": "marketing-fairy",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@google/genai": "^1.41.0",
+    "@supabase/ssr": "^0.8.0",
+    "@supabase/supabase-js": "^2.49.0",
+    "@tosspayments/tosspayments-sdk": "^2.5.0",
+    "@types/three": "^0.183.1",
+    "cheerio": "^1.2.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.474.0",
+    "next": "15.5.12",
+    "puppeteer": "^24.37.5",
+    "puppeteer-core": "^24.37.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^3.7.0",
+    "tailwind-merge": "^3.0.0",
+    "three": "^0.183.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/dotenv": "^6.1.1",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/uuid": "^10.0.0",
+    "dotenv": "^17.3.1",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "15.5.12",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
