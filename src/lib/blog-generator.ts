@@ -1,6 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let aiInstance: GoogleGenAI | null = null;
+function getAI() {
+    if (!aiInstance) {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not defined in environment variables");
+        }
+        aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    }
+    return aiInstance;
+}
 
 /**
  * 프롬프트 생성 함수
@@ -150,7 +159,7 @@ export async function generateBlogPost(
         for (let i = 0; i < images.length; i++) {
             try {
                 const img = images[i];
-                const res = await (ai as any).models.generateContent({
+                const res = await (getAI() as any).models.generateContent({
                     model: "gemini-2.5-flash",
                     contents: [
                         {
@@ -178,7 +187,7 @@ export async function generateBlogPost(
     const instructionPrompt = buildContentPrompt(keywords, contentLength, crawledData, images.length, imageDescriptions, store, context);
 
     console.log(`[BlogGen] 블로그 본문 생성 시작 (Model: gemini-2.5-flash)...`);
-    const response = await (ai as any).models.generateContent({
+    const response = await (getAI() as any).models.generateContent({
         model: "gemini-2.5-flash",
         contents: instructionPrompt,
         config: {
