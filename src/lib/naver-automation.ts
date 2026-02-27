@@ -69,22 +69,44 @@ export class NaverAutomation {
         }
 
         this.addLog("네이버 토큰(SeOptions) 요청 중...");
-        // 2단계: 토큰 발급
-        const tokenResp = await axios.get(`https://blog.naver.com/PostWriteFormSeOptions.naver?blogId=${blogId}&categoryNo=1`, {
-            headers: this.getHeaders()
-        });
-        const token = tokenResp.data?.result?.token;
-        if (!token) throw new Error("네이버 에디터 토큰(token)을 발급받지 못했습니다.");
+        let token = '';
+        try {
+            const tokenResp = await axios.get(`https://blog.naver.com/PostWriteFormSeOptions.naver?blogId=${blogId}&categoryNo=1`, {
+                headers: this.getHeaders()
+            });
+            token = tokenResp.data?.result?.token;
+            if (!token) {
+                console.error("[Naver API] Token Error Response:", tokenResp.status, tokenResp.data);
+                if (typeof tokenResp.data === 'string' && tokenResp.data.includes('login')) {
+                    throw new Error("세션이 만료되었거나 올바르지 않은 쿠키 계정입니다 (NID_AUT, NID_SES 확인 필요). 본인 네이버 계정의 쿠키를 다시 추출해 서버 .env에 갱신해주세요.");
+                } else if (typeof tokenResp.data === 'string' && tokenResp.data.includes('Not Found')) {
+                    throw new Error("블로그 ID가 잘못되었습니다. 네이버 아이디를 다시 확인해주세요.");
+                }
+                throw new Error("네이버 에디터 토큰(token)을 발급받지 못했습니다. 터미널 에러 로그를 참조하세요.");
+            }
+        } catch (e: any) {
+            console.error("[Naver API] Token fetching failed:", e.response?.status, e.response?.data || e.message);
+            if (e.response && typeof e.response.data === 'string' && e.response.data.includes('login')) {
+                throw new Error("세션이 만료되었거나 올바르지 않은 네이버 계정(쿠키)입니다. 다시 쿠키를 추출해 등록해주세요.");
+            } else if (e.response?.status === 404 || (typeof e.response?.data === 'string' && e.response?.data.includes('Not Found'))) {
+                throw new Error(`블로그 ID(${blogId})가 존재하지 않거나 잘못되었습니다.`);
+            } else {
+                throw new Error(`네이버 에디터 토큰(token)을 발급받지 못했습니다. 로그를 확인해주세요.`);
+            }
+        }
 
-        this.addLog("editorInfo.id (document ID) 요청 중...");
         // 3단계: document ID 확인
+        this.addLog("editorInfo.id (document ID) 요청 중...");
         const docIdResp = await axios.get(`https://platform.editor.naver.com/api/blogpc001/v1/service_config`, {
             headers: this.getHeaders({
                 'Se-Authorization': token,
             })
         });
         const documentId = docIdResp.data?.editorInfo?.id;
-        if (!documentId) throw new Error("document ID를 가져오지 못했습니다.");
+        if (!documentId) {
+            console.error("[Naver API] Document ID Error Response:", docIdResp.data);
+            throw new Error("document ID를 가져오지 못했습니다.");
+        }
 
         this.addLog("editorSource 요청 중...");
         // 4단계: editorSource 확인
