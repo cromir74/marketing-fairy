@@ -31,18 +31,28 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
 
     // 2. 모바일 URL로 변환 (모바일 페이지가 데이터 추출이 더 용이함)
     let mobileUrl = targetUrl;
-    const placeIdMatch = targetUrl.match(/place\/(\d+)/);
-    if (placeIdMatch && placeIdMatch[1]) {
+
+    // URL에서 매장 ID 추출 시도 (다양한 패턴 대응)
+    const placeIdMatch = targetUrl.match(/place\/(\d+)/) || targetUrl.match(/id=(\d+)/) || targetUrl.match(/\/(\d+)\//);
+
+    if (placeIdMatch && placeIdMatch[1] && placeIdMatch[1].length >= 6) {
         mobileUrl = `https://m.place.naver.com/place/${placeIdMatch[1]}/home`;
+        console.log(`[Crawler] Target ID identified: ${placeIdMatch[1]}`);
     } else {
         mobileUrl = targetUrl.replace("map.naver.com", "m.place.naver.com");
         if (!mobileUrl.includes("m.place.naver.com")) {
-            // 기타 형태 대응
-            if (mobileUrl.includes("naver.com") && !mobileUrl.includes("m.place")) {
-                // 특정 파라미터나 경로 처리 로직 추가 가능
+            // 주소가 변환되지 않았을 때 수동 보정
+            if (mobileUrl.includes("map.naver.com/p/")) {
+                const parts = mobileUrl.split("/");
+                const id = parts.find(p => /^\d+$/.test(p));
+                if (id) {
+                    mobileUrl = `https://m.place.naver.com/place/${id}/home`;
+                }
             }
         }
     }
+
+    console.log(`[Crawler] Final Mobile URL: ${mobileUrl}`);
 
     let browser;
     try {
@@ -119,33 +129,79 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
 
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
-        // DOM 기반 백업 추출 (셀렉터 업데이트)
+        // DOM 기반 백업 추출 (셀렉터 업데이트 - 2026.02 기준 최신화)
         const domData = await page.evaluate(async () => {
-            const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-            // 이름 셀렉터 (네이버 플레이스 모바일 최신 기준)
-            let n = document.querySelector(".Fc96A, .G_678, ._3X_z6, h1")?.textContent?.trim() || "";
-
-            // 업종/카테고리
-            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, .lnJFt")?.textContent?.trim() || "";
-
-            // 주소
-            const addrEl = document.querySelector(".pz7wy, .LDgIH, .IHacz, .xbdPI");
-            const addr = addrEl ? addrEl.textContent?.trim() : "";
-
-            // 전화번호
-            const telEl = document.querySelector('a[href^="tel:"]');
-            const tel = telEl ? telEl.getAttribute('href')?.replace('tel:', '') : "";
-
-            // 영업시간
-            let hours = "";
-            const timeEl = document.querySelector(".w9QyJ, ._2Ry6s, time");
-            if (timeEl) {
-                hours = timeEl.textContent?.trim() || "";
+            // 1. 매장명
+            let n = document.querySelector(".Fc96A, .G_678, ._3X_z6, ._3h98D, h1")?.textContent?.trim() || "";
+            if (!n) {
+                const headerName = document.querySelector('[role="heading"], .name_main')?.textContent?.trim();
+                if (headerName) n = headerName;
             }
 
-            // 설명
-            const d = document.querySelector(".Z0_tG, ._1M_6r, ._3Hy_A")?.textContent?.trim() || "";
+            // 2. 업종
+            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, .lnJFt, ._3it_H")?.textContent?.trim() || "";
+
+            // 3. 주소
+            const addrEl = document.querySelector(".pz7wy, .LDgIH, .IHacz, .xbdPI, .PkgBl, .v_address");
+            const addr = addrEl ? addrEl.textContent?.replace("지도보기", "").replace("복사", "").trim() : "";
+
+            // 4. 전화번호
+            const telEl = document.querySelector('a[href^="tel:"], ._31_pX, .phone');
+            const tel = telEl ? (telEl.getAttribute('href')?.replace('tel:', '') || telEl.textContent?.trim()) : "";
+
+            // 5. 영업시간 상세 추출 (펼치기 시도)
+            let hours = "";
+            try {
+                // 펼치기 버튼 찾기 (텍스트나 클래스 기반)
+                const expandBtn = Array.from(document.querySelectorAll('a[role="button"], .gKP9i, .RMgN0')).find(el =>
+                    el.textContent?.includes("영업시간") || el.textContent?.includes("영업 중") || el.querySelector('.U_7p7')
+                ) as HTMLElement;
+
+                if (expandBtn) {
+                    expandBtn.click();
+                    await new Promise(resolve => setTimeout(resolve, 500)); // 렌더링 대기
+
+                    // 펼쳐진 요일별 정보 수집
+                    const hourRows = document.querySelectorAll('.gKP9i, .RMgN0, .v_business_hours_row');
+                    const hourList: string[] = [];
+
+                    hourRows.forEach(row => {
+                        const day = row.querySelector('span')?.textContent?.trim();
+                        // 시간 영역 내부의 각 줄(운영시간, 브레이크타임 등)을 분리하여 수집
+                        const timeContainer = row.querySelector('div');
+                        let timeText = "";
+                        if (timeContainer) {
+                            // 직접 텍스트뿐만 아니라 자식 요소들의 텍스트를 공백으로 구분하여 수집
+                            const children = Array.from(timeContainer.childNodes);
+                            timeText = children.map(node => node.textContent?.trim()).filter(t => t).join(" ");
+                        } else {
+                            timeText = row.querySelector('._1M_6r')?.textContent?.trim() || "";
+                        }
+
+                        // 요일이 1~2글자이거나 평일/주말 같은 경우만 수집 (불필요한 안내문구 제외)
+                        if (day && timeText && (day.length <= 2 || ["평일", "주말"].includes(day))) {
+                            // "접기" 문구가 포함된 경우 제거
+                            let cleanTime = timeText.replace(/접기$/, "").trim();
+                            // 브레이크타임, 라스트오더 앞에 줄바꿈 및 간격 추가 가능
+                            cleanTime = cleanTime.replace(/(브레이크타임|라스트오더)/g, " ($1)");
+                            hourList.push(`${day}: ${cleanTime}`);
+                        }
+                    });
+
+                    if (hourList.length > 0) {
+                        hours = hourList.join("\n");
+                    }
+                }
+            } catch (e) { }
+
+            // 펼치기 실패 시 혹은 정보 없을 시 요약 정보라도 수집
+            if (!hours) {
+                const timeEl = document.querySelector(".w9QyJ, ._2Ry6s, time, .gKP9i, .RMgN0");
+                if (timeEl) hours = timeEl.textContent?.trim() || "";
+            }
+
+            // 6. 설명
+            const d = document.querySelector(".Z0_tG, ._1M_6r, ._3Hy_A, ._2yqT0, .T88S9")?.textContent?.trim() || "";
 
             return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
         });
@@ -187,29 +243,46 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
     } catch (error: any) {
         console.error("[Crawler] Fatal error during extraction:", error.message);
 
-        // 브라우저 실행 실패 시 최소한의 정보를 위한 fetch fallback
+        // 브라우저 실행 실패 시 상세 정보를 위한 fetch fallback (Regex 기반 추출)
         try {
-            console.log("[Crawler] Attempting lightweight fetch fallback...");
-            const res = await fetch(targetUrl);
-            const html = await res.text();
-            const titleMatch = html.match(/<title>(.*?)<\/title>/);
-            if (titleMatch && titleMatch[1]) {
-                const name = titleMatch[1].replace(" - 네이버 플레이스", "").split(":")[0].trim();
-                if (name && name !== "네이버 플레이스" && name !== "네이버 지도") {
-                    console.log(`[Crawler] Fetch fallback successful: ${name}`);
-                    return {
-                        name,
-                        category: "",
-                        description: "",
-                        menus: ["메뉴 정보 없음"],
-                        reviewKeywords: ["검색된 키워드 없음"],
-                        photos: [],
-                        phone: "",
-                        address: "",
-                        businessHours: "",
-                        rating: 0
-                    };
+            console.log("[Crawler] Attempting robust fetch fallback...");
+            const res = await fetch(mobileUrl, {
+                headers: {
+                    'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
                 }
+            });
+            const html = await res.text();
+
+            // 1. 이름 추출
+            const nameMatch = html.match(/<title>(.*?)<\/title>/) || html.match(/"name":"(.*?)"/) || html.match(/class="Fc96A">(.*?)<\/span>/);
+            let fallbackName = nameMatch ? nameMatch[1].replace(" - 네이버 플레이스", "").split(":")[0].trim() : "";
+
+            // 2. 업종 추출
+            const categoryMatch = html.match(/"category":"(.*?)"/) || html.match(/class="DJJvD">(.*?)<\/span>/);
+            const fallbackCategory = categoryMatch ? categoryMatch[1] : "";
+
+            // 3. 주소 추출
+            const addressMatch = html.match(/"address":"(.*?)"/) || html.match(/"roadAddress":"(.*?)"/);
+            const fallbackAddress = addressMatch ? addressMatch[1] : "";
+
+            // 4. 전화번호 추출
+            const phoneMatch = html.match(/"phone":"(.*?)"/) || html.match(/"tel":"(.*?)"/);
+            const fallbackPhone = phoneMatch ? phoneMatch[1] : "";
+
+            if (fallbackName && fallbackName !== "네이버 플레이스" && fallbackName !== "네이버 지도") {
+                console.log(`[Crawler] Fetch fallback successful: ${fallbackName}`);
+                return {
+                    name: fallbackName,
+                    category: fallbackCategory || "업종 정보 없음",
+                    description: "",
+                    menus: ["메뉴 정보 없음"],
+                    reviewKeywords: ["검색된 키워드 없음"],
+                    photos: [],
+                    phone: fallbackPhone || "",
+                    address: fallbackAddress || "",
+                    businessHours: "",
+                    rating: 0
+                };
             }
         } catch (e) {
             console.error("[Crawler] Fetch fallback also failed");
