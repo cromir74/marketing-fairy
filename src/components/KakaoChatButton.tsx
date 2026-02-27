@@ -9,7 +9,7 @@ export default function KakaoChatButton() {
             href="http://pf.kakao.com/_pujqX/chat"
             target="_blank"
             rel="noopener noreferrer"
-            className="fixed bottom-6 right-6 z-[100] w-14 h-14 bg-[#FEE500] hover:bg-[#F4DC00] text-[#391B1B] rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95 group"
+            className="fixed bottom-[100px] md:bottom-6 right-4 md:right-6 z-[100] w-14 h-14 bg-[#FEE500] hover:bg-[#F4DC00] text-[#391B1B] rounded-full shadow-lg flex items-center justify-center transition-transform hover:scale-110 active:scale-95 group"
             aria-label="카카오톡 채팅 상담"
         >
             <svg

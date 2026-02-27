@@ -466,21 +466,21 @@ export default function LandingPage() {
             </section>
 
             {/* ─── PRICING BENTO ─── */}
-            <section id="pricing" className="py-24 px-6 max-w-5xl mx-auto">
+            <section id="pricing" className="py-24 px-4 sm:px-6 w-full max-w-[100vw] xl:max-w-5xl mx-auto box-border overflow-x-hidden">
                 <div className="text-center mb-16 reveal-on-scroll">
                     <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">명확하고 투명한 요금제</h2>
                     <p className="text-gray-500 text-xl font-medium">대행사 비용 150만원 대신, 월 20만원대로 해결하세요.</p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-8 reveal-on-scroll">
+                <div className="grid md:grid-cols-2 gap-8 reveal-on-scroll w-full box-border">
                     {/* Basic Plan */}
-                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-gray-300 transition-colors">
+                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-gray-300 transition-colors w-full max-w-full box-border">
                         <h3 className="text-2xl font-bold text-gray-900 mb-2 font-display">베이직</h3>
                         <p className="text-gray-500 font-medium mb-6">SNS 자동화의 시작</p>
                         <div className="mb-8">
                             <div className="text-gray-400 line-through text-lg font-bold mb-1">₩150,000</div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-4xl sm:text-5xl font-display font-black text-gray-900 tracking-tight">₩120,000</span>
+                            <div className="flex items-baseline gap-1 sm:gap-2">
+                                <span className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight shrink">₩120,000</span>
                                 <span className="text-gray-500 font-bold shrink-0">/월</span>
                             </div>
                         </div>
@@ -493,13 +493,13 @@ export default function LandingPage() {
                             <FeatureItem text="네이버 블로그 자동 발행" excluded />
                         </ul>
 
-                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center py-4 rounded-xl border-2 border-gray-200 text-gray-800 font-bold hover:bg-gray-50 hover:border-gray-300 transition-all">
+                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-xl border-2 border-gray-200 text-gray-800 font-bold hover:bg-gray-50 hover:border-gray-300 transition-all box-border">
                             {user ? "대시보드로 이동" : "베이직 시작하기"}
                         </Link>
                     </div>
 
                     {/* Pro Plan */}
-                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative transform md:-translate-y-4">
+                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative transform md:-translate-y-4 w-full max-w-full box-border">
                         <div className="absolute -top-4 right-6 md:right-10 bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-wider uppercase shadow-md flex items-center gap-2">
                             <Zap className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" />
                             가장 인기
@@ -515,10 +515,10 @@ export default function LandingPage() {
                             )}
                         </div>
 
-                        <div className="mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                        <div className="mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100 w-full box-border overflow-hidden">
                             <div className="text-gray-400 line-through text-lg font-bold mb-1">₩290,000</div>
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-4xl sm:text-5xl font-display font-black text-gray-900 tracking-tight">₩230,000</span>
+                            <div className="flex items-baseline gap-1 sm:gap-2">
+                                <span className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight shrink">₩230,000</span>
                                 <span className="text-gray-500 font-bold shrink-0">/월</span>
                             </div>
                         </div>
@@ -531,7 +531,7 @@ export default function LandingPage() {
                             <FeatureItem text="네이버 플레이스 심화 분석" highlight />
                         </ul>
 
-                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center py-4 rounded-xl bg-primary-500 text-white font-bold hover:bg-primary-600 transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)]">
+                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-xl bg-primary-500 text-white font-bold hover:bg-primary-600 transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] box-border">
                             {user ? "대시보드로 이동" : "프로 시작하기"}
                         </Link>
                     </div>
