@@ -58,17 +58,25 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
 
     // --- 1단계: Cheerio 기반 고밀도 데이터 추출 (브라우저 없이 소스 파싱) ---
     try {
-        console.log("[Crawler] Starting high-performance Fetch/Cheerio extraction...");
+        console.log(`[Crawler] Starting high-performance Fetch/Cheerio extraction...`);
         const res = await fetch(mobileUrl, {
             headers: {
-                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control': 'no-cache'
             }
         });
+
+        console.log(`[Crawler] Fetch status: ${res.status} ${res.statusText}`);
         const html = await res.text();
+        console.log(`[Crawler] HTML length: ${html.length} bytes, Preview: ${html.substring(0, 100).replace(/\n/g, "")}`);
+
         const $ = cheerio.load(html);
 
         // 네이버 플레이스는 __INITIAL_STATE__ 스크립트 태그에 거의 모든 정보가 포함되어 있음
         const scripts = $('script').toArray();
+        console.log(`[Crawler] Found ${scripts.length} script tags`);
+
         const stateScript = scripts.find(s => {
             const content = $(s).text() || "";
             return content.includes('__INITIAL_STATE__') || content.includes('__APOLLO_STATE__');
@@ -76,6 +84,7 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
 
         if (stateScript) {
             const stateText = $(stateScript).text() || "";
+            console.log(`[Crawler] Found state script, length: ${stateText.length} chars`);
             // 정규식으로 JSON 추출 (여러 변수명 대응)
             const jsonMatch = stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*?});/) ||
                 stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*})/);
