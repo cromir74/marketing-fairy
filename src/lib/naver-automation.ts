@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 export interface NaverPublishOptions {
     title: string;
     content: string;
+    blogId: string;
     images?: { path: string; mimeType: string }[];
     mode: 'immediate' | 'draft' | 'scheduled';
     scheduledTime?: string;
@@ -61,10 +62,10 @@ export class NaverAutomation {
 
     async publish(options: NaverPublishOptions): Promise<string> {
         this.onLogCallback = options.onLog;
-        const blogId = process.env.NAVER_BLOG_ID;
+        const blogId = options.blogId || process.env.NAVER_BLOG_ID;
 
         if (!blogId) {
-            throw new Error("NAVER_BLOG_ID 환경변수가 설정되지 않았습니다.");
+            throw new Error("블로그 ID가 입력되지 않았습니다.");
         }
 
         this.addLog("네이버 토큰(SeOptions) 요청 중...");

@@ -78,6 +78,7 @@ export async function POST(req: Request) {
         const publishedUrl = await automation.publish({
             title,
             content,
+            blogId: id,
             images: savedImagePaths,
             mode,
             scheduledTime,
