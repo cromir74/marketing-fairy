@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="ko">
-            <body className="antialiased">
+        <html lang="ko" className="overflow-x-hidden max-w-[100vw]">
+            <body className="antialiased overflow-x-hidden max-w-[100vw] w-full">
                 {children}
                 <KakaoChatButton />
             </body>

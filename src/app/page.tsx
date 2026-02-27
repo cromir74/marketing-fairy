@@ -102,16 +102,16 @@ export default function LandingPage() {
     ];
 
     return (
-        <div className="min-h-screen bg-[#FAFAFA] text-gray-900 font-sans selection:bg-primary-100 selection:text-primary-900">
+        <div className="min-h-screen w-full overflow-x-hidden max-w-[100vw] bg-[#FAFAFA] text-gray-900 font-sans selection:bg-primary-100 selection:text-primary-900">
 
             {/* ─── HEADER (FLOATING BENTO) ─── */}
             <header className="fixed top-6 left-0 right-0 z-50 px-4 flex justify-center">
                 <div className="w-full max-w-5xl bg-white/80 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-sm px-6 py-4 flex items-center justify-between transition-all hover:shadow-md">
                     <Link href="/" onClick={() => window.scrollTo(0, 0)} className="flex items-center gap-2 group">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 group-hover:bg-primary-50 transition-colors">
+                        <div className="flex shrink-0 h-8 w-8 items-center justify-center rounded-lg bg-green-50 group-hover:bg-primary-50 transition-colors">
                             <Wand2 className="h-4 w-4 text-primary-600" />
                         </div>
-                        <span className="text-lg font-bold tracking-tight font-display text-gray-900">
+                        <span className="text-lg font-bold tracking-tight font-display text-gray-900 whitespace-nowrap shrink-0">
                             마케팅요정
                         </span>
                     </Link>
@@ -140,7 +140,7 @@ export default function LandingPage() {
                                 </Link>
                             </>
                         )}
-                        <button className="md:hidden p-2 text-gray-500" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                        <button className="md:hidden p-2 text-gray-500 shrink-0" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                             <Menu className="w-5 h-5" />
                         </button>
                     </div>
@@ -173,7 +173,7 @@ export default function LandingPage() {
                     <Sparkles className="w-3.5 h-3.5 text-primary-500" />
                     가장 완벽한 AI 마케팅 자동화
                 </div>
-                <h1 className="text-5xl sm:text-7xl font-display font-black text-gray-900 tracking-tight leading-[1.1] mb-8">
+                <h1 className="text-4xl sm:text-6xl md:text-7xl font-display font-black text-gray-900 tracking-tight leading-[1.2] sm:leading-[1.1] mb-8 break-keep">
                     사장님, 마케팅은 <br className="hidden sm:block" />
                     <span className="text-primary-500">요정에게 맡기세요</span>
                 </h1>
@@ -214,7 +214,7 @@ export default function LandingPage() {
             <section className="py-24 px-6 bg-white border-b border-gray-100">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16 reveal-on-scroll">
-                        <h2 className="text-4xl font-display font-black text-gray-900 mb-4 tracking-tight">이렇게 쉬울 수 없습니다</h2>
+                        <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">이렇게 쉬울 수 없습니다</h2>
                         <p className="text-xl text-gray-500 font-medium max-w-2xl mx-auto">복잡한 설정 없이, 3단계만으로 전문 마케터 수준의 콘텐츠를 받아보세요.</p>
                     </div>
 
@@ -252,7 +252,7 @@ export default function LandingPage() {
             {/* ─── BENTO GRID FEATURES ─── */}
             <section id="features" className="py-24 px-6 max-w-6xl mx-auto">
                 <div className="mb-16 reveal-on-scroll">
-                    <h2 className="text-4xl font-display font-black text-gray-900 mb-4 tracking-tight">마케팅 자동화의 정수</h2>
+                    <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">마케팅 자동화의 정수</h2>
                     <p className="text-xl text-gray-500 font-medium">가게 링크 하나면 AI가 전체 컨셉을 파악해 글을 써냅니다.</p>
                 </div>
 
@@ -325,7 +325,7 @@ export default function LandingPage() {
             <section id="compare" className="py-24 px-6 bg-white border-y border-gray-100">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16 reveal-on-scroll">
-                        <h2 className="text-4xl font-display font-black text-gray-900 mb-4 tracking-tight">퀄리티의 차이가 곧 매출의 차이</h2>
+                        <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">퀄리티의 차이가 곧 매출의 차이</h2>
                         <p className="text-gray-500 text-xl font-medium">고객을 멈추게 하는 글의 비밀을 확인해보세요.</p>
                     </div>
 
@@ -385,7 +385,7 @@ export default function LandingPage() {
             <section className="py-24 px-6 bg-[#FAFAFA]">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16 reveal-on-scroll">
-                        <h2 className="text-4xl font-display font-black text-gray-900 mb-4 tracking-tight">대행사에 맡기면 얼마일까요?</h2>
+                        <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">대행사에 맡기면 얼마일까요?</h2>
                         <p className="text-xl text-gray-500 font-medium">같은 일을 하는데, 비용은 이렇게 다릅니다.</p>
                     </div>
 
@@ -468,7 +468,7 @@ export default function LandingPage() {
             {/* ─── PRICING BENTO ─── */}
             <section id="pricing" className="py-24 px-6 max-w-5xl mx-auto">
                 <div className="text-center mb-16 reveal-on-scroll">
-                    <h2 className="text-4xl font-display font-black text-gray-900 mb-4 tracking-tight">명확하고 투명한 요금제</h2>
+                    <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">명확하고 투명한 요금제</h2>
                     <p className="text-gray-500 text-xl font-medium">대행사 비용 150만원 대신, 월 20만원대로 해결하세요.</p>
                 </div>
 
@@ -541,7 +541,7 @@ export default function LandingPage() {
             {/* ─── FAQ ACCORDION ─── */}
             <section id="faq" className="py-24 px-6 max-w-3xl mx-auto">
                 <div className="text-center mb-16 reveal-on-scroll">
-                    <h2 className="text-3xl font-display font-black text-gray-900 mb-4 tracking-tight">자주 묻는 질문</h2>
+                    <h2 className="text-3xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">자주 묻는 질문</h2>
                 </div>
                 <div className="space-y-4 reveal-on-scroll">
                     <FAQItem q="AI가 쓴 글이 어색하지 않나요?" a="마케팅요정은 특정 업종 메뉴 데이터 및 수만 건의 인기 게시글 패턴을 학습한 AI를 사용합니다. 일반적인 AI 봇의 딱딱한 말투가 아닌, 사람 냄새 나는 다양한 페르소나 스타일로 자연스럽게 작성됩니다." openByDefault />
@@ -556,7 +556,7 @@ export default function LandingPage() {
             <section className="py-24 px-6 border-t border-gray-200/60 bg-white text-center">
                 <div className="max-w-4xl mx-auto bg-gray-900 rounded-[3rem] p-12 md:p-20 relative overflow-hidden shadow-2xl reveal-on-scroll">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <h2 className="text-4xl md:text-5xl font-display font-black text-white mb-6 leading-tight relative z-10">마케팅 자동화의 시작,<br />버튼 하나면 충분합니다.</h2>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white mb-6 leading-tight relative z-10 break-keep">마케팅 자동화의 시작,<br />버튼 하나면 충분합니다.</h2>
                     <p className="text-xl text-gray-400 mb-10 font-medium relative z-10 max-w-xl mx-auto">1분이면 설정을 완료하고 바로 컨텐츠를 올릴 수 있습니다.</p>
                     <Link href={user ? "/dashboard" : "/signup"} className="inline-flex items-center justify-center bg-white text-gray-900 h-16 px-10 rounded-2xl text-lg font-bold shadow-xl hover:scale-105 transition-transform relative z-10">
                         {user ? "대시보드로 이동하기" : "무료로 첫 글 작성해보기"}
@@ -622,7 +622,7 @@ export default function LandingPage() {
                 <div className="fixed bottom-0 left-0 right-0 z-50 p-4 md:hidden">
                     <Link
                         href={user ? "/dashboard" : "/signup"}
-                        className="w-full flex items-center justify-center bg-gray-900 text-white h-14 rounded-2xl text-base font-bold shadow-[0_-4px_20px_rgba(0,0,0,0.15)] active:scale-[0.98] transition-transform"
+                        className="w-full flex items-center justify-center bg-gray-900 text-white h-14 rounded-2xl text-base font-bold shadow-[0_-4px_20px_rgba(0,0,0,0.15)] active:scale-[0.98] transition-transform max-w-[calc(100vw-2rem)] mx-auto"
                     >
                         {user ? "대시보드로 이동 →" : "7일 무료 체험 시작 →"}
                     </Link>
