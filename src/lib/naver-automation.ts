@@ -120,22 +120,37 @@ export class NaverAutomation {
     async login(id: string, pw: string) {
         if (!this.page) throw new Error("Browser not initialized");
         this.naverId = id;
-        this.addLog("네이버 로그인 시도 중 (ID/PW)...");
+        this.addLog("네이버 로그인 시도 중 (Stealth Paste 방식)...");
 
         try {
             await this.page.goto('https://nid.naver.com/nidlogin.login', { waitUntil: 'networkidle2' });
+            await new Promise(r => setTimeout(r, 1000));
 
-            // 직접 value 설정 대신 keyboard type 사용 (추가 지연)
-            await this.page.click('#id');
-            await this.page.keyboard.type(id, { delay: 100 });
+            // ID 입력 (insertText 방식 - 봇 감지 우회)
+            this.addLog("아이디 입력 중...");
+            await this.page.evaluate((val) => {
+                const el = document.querySelector('#id') as HTMLInputElement;
+                if (!el) return;
+                el.value = '';
+                el.focus();
+                document.execCommand('insertText', false, val);
+            }, id);
             await new Promise(r => setTimeout(r, 500));
 
-            await this.page.click('#pw');
-            await this.page.keyboard.type(pw, { delay: 100 });
+            // PW 입력 (insertText 방식)
+            await this.page.evaluate((val) => {
+                const el = document.querySelector('#pw') as HTMLInputElement;
+                if (!el) return;
+                el.value = '';
+                el.focus();
+                document.execCommand('insertText', false, val);
+            }, pw);
             await new Promise(r => setTimeout(r, 500));
 
+            // 로그인 버튼 클릭
             await this.page.click('.btn_login');
-            await new Promise(r => setTimeout(r, 2000));
+            this.addLog("로그인 버튼 클릭 완료, 3초 대기...");
+            await new Promise(r => setTimeout(r, 3000));
 
             // 내비게이션 대기 또는 에러 체크
             const currentUrl = this.page.url();
@@ -149,10 +164,10 @@ export class NaverAutomation {
                     const screenshotPath = path.join(process.cwd(), 'public', 'naver_captcha.png');
                     await fs.ensureDir(path.dirname(screenshotPath));
                     await this.page.screenshot({ path: screenshotPath });
-                    throw new Error("보안문자(캡차)가 발생했습니다. public/naver_captcha.png를 확인하세요.");
+                    throw new Error("보안문자(캡차)가 발생했습니다. 화면의 보안 문자를 확인해 주세요.");
                 }
 
-                throw new Error("로그인 실패: 아이디/비밀번호를 확인하거나 캡차 발생 여부를 확인하세요.");
+                throw new Error("로그인 실패: 계정 정보를 확인하거나 캡차 입력을 확인하세요.");
             }
 
             this.addLog("로그인 성공, 쿠키 저장 중...");
@@ -187,7 +202,7 @@ export class NaverAutomation {
         this.addLog("블로그 에디터 진입 중...");
 
         try {
-            const editorUrl = `https://blog.naver.com/${this.naverId}?Redirect=Write&`;
+            const editorUrl = `https://blog.naver.com/GoBlogWrite.naver`;
             await this.page.goto(editorUrl, {
                 waitUntil: 'networkidle2',
                 timeout: 60000
@@ -266,15 +281,16 @@ export class NaverAutomation {
         // 1. 제목 입력
         this.addLog(`제목 입력 중: ${title}`);
         try {
-            const titleSelector = '.se-ff-nanumbarungothic.se-fs15.se-placeholder, .se-placeholder.se-ff-nanumbarungothic, .se-title-text';
-            await frame.waitForSelector(titleSelector, { timeout: 15000 });
-            await frame.click(titleSelector);
+            await frame.waitForSelector('.se-section-documentTitle', { timeout: 15000 });
+            await frame.click('.se-section-documentTitle');
+            await new Promise(r => setTimeout(r, 500));
         } catch (e) {
-            this.addLog("제목 입력란 클릭 실패 (포커싱 시도)", "warning");
-            await this.page.keyboard.press('Tab');
+            this.addLog("제목 영역을 찾을 수 없어 기본 셀렉터 시도", "warning");
+            const titleSelector = '.se-ff-nanumbarungothic.se-fs15.se-placeholder, .se-placeholder.se-ff-nanumbarungothic, .se-title-text';
+            await frame.click(titleSelector).catch(() => { });
         }
 
-        await this.page.keyboard.type(title, { delay: 50 });
+        await this.typeTextSlowly(title, 30);
         await this.page.keyboard.press('Enter');
         await new Promise(r => setTimeout(r, 800));
 
@@ -496,26 +512,25 @@ export class NaverAutomation {
 
     private async ensureLastSectionFocus(frame: Frame) {
         try {
-            await frame.evaluate(() => {
-                const textSections = document.querySelectorAll('.se-section-text');
-                if (textSections.length > 0) {
-                    const last = textSections[textSections.length - 1] as HTMLElement;
-                    last.focus();
-
-                    const range = document.createRange();
-                    range.selectNodeContents(last);
-                    range.collapse(false);
-                    const sel = window.getSelection();
-                    if (sel) {
-                        sel.removeAllRanges();
-                        sel.addRange(range);
-                    }
-                } else {
-                    const content = document.querySelector('.se-content') as HTMLElement;
-                    if (content) content.focus();
+            const focused = await frame.evaluate(() => {
+                const textSection = document.querySelector('.se-section-text') as HTMLElement;
+                if (textSection) {
+                    textSection.click();
+                    textSection.focus();
+                    return true;
                 }
+                const textSections = document.querySelectorAll('.se-section-text--active');
+                if (textSections.length > 0) {
+                    (textSections[textSections.length - 1] as HTMLElement).focus();
+                    return true;
+                }
+                return false;
             });
-            await new Promise(r => setTimeout(r, 200));
+
+            if (!focused) {
+                await frame.click('.se-main-container').catch(() => { });
+            }
+            await new Promise(r => setTimeout(r, 300));
         } catch (e) { }
     }
 
