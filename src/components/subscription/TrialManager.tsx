@@ -61,7 +61,7 @@ export function TrialManager({ children }: { children: React.ReactNode }) {
         <div className="relative w-full h-full flex flex-col">
             {/* Trial Banner */}
             {isTrial && !isExpired && (
-                <div className="sticky top-0 z-40 w-full bg-gradient-to-r from-purple-600 to-indigo-600 px-4 py-2.5 shadow-md flex items-center justify-between">
+                <div className="sticky top-0 z-40 w-full bg-gradient-to-r from-purple-600 to-indigo-600 pr-4 pl-14 lg:px-4 py-2.5 shadow-md flex items-center justify-between">
                     <div className="flex items-center gap-3 text-white text-sm font-medium">
                         <span className="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-full text-xs font-bold">
                             <Sparkles className="h-3.5 w-3.5 text-yellow-300" />

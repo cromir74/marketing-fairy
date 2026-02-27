@@ -48,7 +48,7 @@ export function Sidebar() {
             {/* 모바일 햄버거 */}
             <button
                 onClick={() => setMobileOpen(true)}
-                className="fixed top-4 left-4 z-50 rounded-xl bg-white p-2 shadow-md lg:hidden"
+                className="fixed top-2.5 left-2.5 z-[60] rounded-xl bg-white/90 backdrop-blur-sm p-2 shadow-sm border border-gray-100 lg:hidden"
             >
                 <Menu className="h-5 w-5 text-gray-700" />
             </button>

@@ -98,7 +98,7 @@ export default function PricingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#fcfcfd] py-16 px-4 md:py-24">
+        <div className="min-h-screen bg-[#fcfcfd] py-16 px-4 md:py-24 overflow-x-hidden w-full max-w-[100vw] box-border">
             {/* Header */}
             <div className="max-w-4xl mx-auto text-center mb-16 space-y-4">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-sm font-bold animate-bounce">
@@ -116,10 +116,10 @@ export default function PricingPage() {
             </div>
 
             {/* Pricing Cards */}
-            <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-8 mb-24">
+            <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-6 sm:gap-8 mb-24 w-full box-border">
                 {/* Basic Plan */}
-                <Card isHoverable className="relative overflow-hidden border-gray-200 bg-white shadow-xl shadow-gray-100/50 flex flex-col group hover:border-primary-200 transition-all duration-300">
-                    <div className="p-8 pb-0">
+                <Card isHoverable className="relative overflow-hidden border-gray-200 bg-white shadow-xl shadow-gray-100/50 flex flex-col group hover:border-primary-200 transition-all duration-300 w-full max-w-full box-border">
+                    <div className="p-5 sm:p-8 pb-0">
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">베이직</h3>
@@ -130,11 +130,11 @@ export default function PricingPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-1 mb-8">
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-gray-400 line-through text-lg">150,000원</span>
-                                <span className="text-4xl font-black text-gray-900">120,000원</span>
-                                <span className="text-gray-500 font-medium">/ 월</span>
+                        <div className="space-y-1 mb-6 sm:mb-8">
+                            <div className="flex items-baseline gap-1.5 sm:gap-2">
+                                <span className="text-gray-400 line-through text-sm sm:text-lg">150,000원</span>
+                                <span className="text-2xl sm:text-4xl font-black text-gray-900 shrink">120,000원</span>
+                                <span className="text-gray-500 font-medium shrink-0">/ 월</span>
                             </div>
                             <p className="text-xs font-bold text-primary-600 flex items-center gap-1">
                                 <Users className="h-3 w-3" />
@@ -144,14 +144,14 @@ export default function PricingPage() {
 
                         <Button
                             variant="secondary"
-                            className="w-full h-14 text-base font-bold border-2 hover:bg-gray-50 transition-colors"
+                            className="w-full h-14 text-sm sm:text-base font-bold border-2 hover:bg-gray-50 transition-colors"
                             onClick={() => handlePayment("basic")}
                         >
                             베이직 시작하기
                         </Button>
                     </div>
 
-                    <div className="p-8 space-y-4 flex-grow">
+                    <div className="p-5 sm:p-8 space-y-4 flex-grow">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">포함된 기능:</p>
                         <div className="space-y-4">
                             <FeatureItem text="AI 마케팅 글 자동 생성" />
@@ -172,13 +172,13 @@ export default function PricingPage() {
                 </Card>
 
                 {/* Pro Plan */}
-                <Card isHoverable className="relative overflow-hidden border-2 border-primary-600 bg-white shadow-2xl shadow-primary-100/50 flex flex-col scale-105 z-10 transition-all duration-300">
-                    <div className="absolute top-0 right-0 bg-primary-600 text-white px-6 py-2 rounded-bl-2xl font-black text-sm uppercase tracking-wider flex items-center gap-2">
-                        <Sparkles className="h-4 w-4" />
+                <Card isHoverable className="relative overflow-hidden border-2 border-primary-600 bg-white shadow-2xl shadow-primary-100/50 flex flex-col md:scale-105 z-10 transition-all duration-300 w-full max-w-full box-border mt-4 md:mt-0">
+                    <div className="absolute top-0 right-0 bg-primary-600 text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-bl-2xl font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2">
+                        <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         가장 인기
                     </div>
 
-                    <div className="p-8 pb-0 mt-4">
+                    <div className="p-5 sm:p-8 pb-0 mt-6 sm:mt-4">
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">프로</h3>
@@ -189,11 +189,11 @@ export default function PricingPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-1 mb-8">
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-gray-400 line-through text-lg">290,000원</span>
-                                <span className="text-4xl font-black text-gray-900">230,000원</span>
-                                <span className="text-gray-500 font-medium">/ 월</span>
+                        <div className="space-y-1 mb-6 sm:mb-8">
+                            <div className="flex items-baseline gap-1.5 sm:gap-2">
+                                <span className="text-gray-400 line-through text-sm sm:text-lg">290,000원</span>
+                                <span className="text-2xl sm:text-4xl font-black text-gray-900 shrink">230,000원</span>
+                                <span className="text-gray-500 font-medium shrink-0">/ 월</span>
                             </div>
                             <div className="flex items-center justify-between">
                                 <p className="text-xs font-bold text-primary-600 flex items-center gap-1">
@@ -207,15 +207,15 @@ export default function PricingPage() {
                         </div>
 
                         <Button
-                            className="w-full h-14 text-base font-bold bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 shadow-lg shadow-primary-200"
+                            className="w-full h-14 text-sm sm:text-base font-bold bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 shadow-lg shadow-primary-200"
                             onClick={() => handlePayment("pro")}
                         >
                             프로 시작하기
-                            <ArrowRight className="ml-2 h-5 w-5" />
+                            <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
                         </Button>
                     </div>
 
-                    <div className="p-8 space-y-4 flex-grow bg-primary-50/30">
+                    <div className="p-5 sm:p-8 space-y-4 flex-grow bg-primary-50/30">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">베이직의 모든 기능 +</p>
                         <div className="space-y-4">
                             <FeatureItem text="네이버 블로그 자동 발행 (월 30건)" highlight />
@@ -246,11 +246,13 @@ export default function PricingPage() {
 
 function FeatureItem({ text, disabled = false, highlight = false, icon }: { text: string, disabled?: boolean, highlight?: boolean, icon?: React.ReactNode }) {
     return (
-        <div className={`flex items-center gap-3 ${disabled ? "opacity-30" : "opacity-100"}`}>
-            {icon ? icon : (
-                disabled ? <X className="h-4 w-4 text-gray-400" /> : <Check className={`h-4 w-4 ${highlight ? "text-primary-600" : "text-emerald-500"}`} />
-            )}
-            <span className={`text-sm ${highlight ? "font-bold text-gray-900" : "text-gray-600"} ${disabled ? "line-through" : ""}`}>
+        <div className={`flex items-start gap-2.5 sm:gap-3 ${disabled ? "opacity-30" : "opacity-100"}`}>
+            <div className="shrink-0 mt-0.5">
+                {icon ? icon : (
+                    disabled ? <X className="h-4 w-4 text-gray-400" /> : <Check className={`h-4 w-4 ${highlight ? "text-primary-600" : "text-emerald-500"}`} />
+                )}
+            </div>
+            <span className={`text-xs sm:text-sm flex-1 break-keep leading-[1.4] ${highlight ? "font-bold text-gray-900" : "text-gray-600"} ${disabled ? "line-through" : ""}`}>
                 {text}
             </span>
         </div>
