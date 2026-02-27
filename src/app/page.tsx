@@ -474,14 +474,14 @@ export default function LandingPage() {
 
                 <div className="grid md:grid-cols-2 gap-8 reveal-on-scroll">
                     {/* Basic Plan */}
-                    <div className="bg-white rounded-[2.5rem] p-10 border border-gray-200 shadow-sm flex flex-col hover:border-gray-300 transition-colors">
+                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-gray-300 transition-colors">
                         <h3 className="text-2xl font-bold text-gray-900 mb-2 font-display">베이직</h3>
                         <p className="text-gray-500 font-medium mb-6">SNS 자동화의 시작</p>
                         <div className="mb-8">
                             <div className="text-gray-400 line-through text-lg font-bold mb-1">₩150,000</div>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-5xl font-display font-black text-gray-900 tracking-tight">₩120,000</span>
-                                <span className="text-gray-500 font-bold">/월</span>
+                                <span className="text-4xl sm:text-5xl font-display font-black text-gray-900 tracking-tight">₩120,000</span>
+                                <span className="text-gray-500 font-bold shrink-0">/월</span>
                             </div>
                         </div>
 
@@ -499,17 +499,17 @@ export default function LandingPage() {
                     </div>
 
                     {/* Pro Plan */}
-                    <div className="bg-white rounded-[2.5rem] p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative transform md:-translate-y-4">
-                        <div className="absolute -top-4 right-10 bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-wider uppercase shadow-md flex items-center gap-2">
+                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative transform md:-translate-y-4">
+                        <div className="absolute -top-4 right-6 md:right-10 bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-wider uppercase shadow-md flex items-center gap-2">
                             <Zap className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" />
                             가장 인기
                         </div>
 
                         <h3 className="text-2xl font-bold text-gray-900 mb-2 font-display">프로</h3>
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex flex-col sm:flex-row sm:justify-between items-start mb-6 gap-3">
                             <p className="text-primary-600 font-bold">완벽한 AI 마케팅 솔루션</p>
                             {!loading && earlybird.tier1 > 0 && (
-                                <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-black animate-pulse border border-red-100">
+                                <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-black animate-pulse border border-red-100 w-fit shrink-0">
                                     얼리버드 잔여 {earlybird.tier1}명
                                 </span>
                             )}
@@ -518,8 +518,8 @@ export default function LandingPage() {
                         <div className="mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
                             <div className="text-gray-400 line-through text-lg font-bold mb-1">₩290,000</div>
                             <div className="flex items-baseline gap-2">
-                                <span className="text-5xl font-display font-black text-gray-900 tracking-tight">₩230,000</span>
-                                <span className="text-gray-500 font-bold">/월</span>
+                                <span className="text-4xl sm:text-5xl font-display font-black text-gray-900 tracking-tight">₩230,000</span>
+                                <span className="text-gray-500 font-bold shrink-0">/월</span>
                             </div>
                         </div>
 
@@ -644,11 +644,11 @@ function MarqueeItem({ icon, text }: { icon: React.ReactNode, text: string }) {
 
 function FeatureItem({ text, highlight = false, excluded = false }: { text: string, highlight?: boolean; excluded?: boolean }) {
     return (
-        <li className={`flex items-center gap-3 ${excluded ? "opacity-50" : ""}`}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${highlight ? "bg-primary-100 text-primary-600" : excluded ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
+        <li className={`flex items-start gap-3 ${excluded ? "opacity-50" : ""}`}>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${highlight ? "bg-primary-100 text-primary-600" : excluded ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
                 {excluded ? <X className="w-3.5 h-3.5 font-bold" /> : <Check className="w-3.5 h-3.5 font-bold" />}
             </div>
-            <span className={`${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
+            <span className={`flex-1 break-keep leading-tight ${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
         </li>
     );
 }
