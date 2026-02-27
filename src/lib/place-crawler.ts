@@ -91,7 +91,7 @@ async function extractPlaceName(url: string, placeId: string): Promise<string | 
         const res = await fetch(`https://m.place.naver.com/restaurant/${placeId}/home`, {
             headers: BROWSER_HEADERS,
             timeout: 5000
-        });
+        } as any);
         const html = await res.text();
         const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
         if (titleMatch) {
@@ -125,14 +125,14 @@ async function fetchNaverLocalAPI(query: string, placeId: string): Promise<Parti
                 'X-Naver-Client-Secret': clientSecret
             },
             timeout: 5000
-        });
+        } as any);
 
         if (!response.ok) {
             console.warn(`[Crawler][Step1] Naver API Error: ${response.status}`);
             return null;
         }
 
-        const data = await response.json();
+        const data = await response.json() as any;
         if (!data.items || data.items.length === 0) {
             return null;
         }
@@ -204,14 +204,14 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
             },
             body: body,
             timeout: 5000
-        });
+        } as any);
 
         if (!response.ok) {
             console.warn(`[Crawler][Step2] GraphQL HTTP Status: ${response.status} -> Skipped`);
             return {};
         }
 
-        const json = await response.json();
+        const json = await response.json() as any;
 
         if (json.errors || !json.data) {
             return {};
@@ -243,19 +243,110 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
     }
 }
 
+// Helper: Deep search for objects by typename in Apollo state
+function deepSearchByTypename(obj: any, typename: string, results: any[] = []) {
+    if (!obj || typeof obj !== 'object') return results;
+
+    if (obj.__typename === typename) {
+        results.push(obj);
+    }
+
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            const val = obj[key];
+            if (val && typeof val === 'object') {
+                deepSearchByTypename(val, typename, results);
+            }
+        }
+    }
+    return results;
+}
+
+// 1-4. HTML에서 Apollo State 추출 및 파싱
+async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> | null> {
+    try {
+        const match = html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]+?});\s*<\/script>/) ||
+            html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]+?});\n/) ||
+            html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]+?});/);
+
+        if (!match) return null;
+
+        const apollo = JSON.parse(match[1]);
+        const info: Partial<PlaceInfo> = {};
+
+        // 1. 기본 정보 (PlaceDetailBase 또는 Place)
+        const place = Object.values(apollo).find((v: any) => v.__typename === 'PlaceDetailBase' || v.__typename === 'Place' || v.__typename === 'Restaurant') as any;
+
+        if (place) {
+            info.name = place.name;
+            info.address = place.address;
+            info.roadAddress = place.roadAddress;
+            info.phone = place.phone || place.virtualPhone;
+            info.category = place.category;
+            info.description = place.description;
+            info.reviewCount = place.visitorReviewsTotal || 0;
+            info.reviewScore = place.visitorReviewsScore || 0;
+            info.tags = place.tags || [];
+
+            if (place.coordinate) {
+                info.x = place.coordinate.x;
+                info.y = place.coordinate.y;
+            }
+        }
+
+        // 2. 영업 시간 (Recursive Search)
+        const workingHours = deepSearchByTypename(apollo, 'WorkingHoursInfo');
+        if (workingHours.length > 0) {
+            info.businessHours = workingHours.map(h => {
+                const day = h.day || '';
+                const start = h.businessHours?.start || '';
+                const end = h.businessHours?.end || '';
+                const breakTime = (h.breakHours && h.breakHours[0]) ? ` (브레이크 ${h.breakHours[0].start}~${h.breakHours[0].end})` : '';
+                return `${day}: ${start}~${end}${breakTime}`;
+            }).filter(s => s.length > 5).join('\n');
+        }
+
+        // 3. 메뉴 (Recursive Search)
+        const menus = deepSearchByTypename(apollo, 'Menu');
+        if (menus.length > 0) {
+            // ID 또는 이름 중복 제거
+            const seen = new Set();
+            info.menuItems = menus.filter(m => {
+                const name = m.name || m.menuName;
+                if (!name || seen.has(name)) return false;
+                seen.add(name);
+                return true;
+            }).map(m => ({
+                name: m.name || m.menuName,
+                price: m.price || '',
+                description: m.description,
+                imageUrl: m.images?.[0] || m.image
+            }));
+        }
+
+        // 4. 이미지 (FsasReview 등에서 추출 가능하나 우선 메뉴/기본 이미지)
+        const imageList = new Set<string>();
+        if (place?.images) place.images.forEach((img: any) => imageList.add(img.url || img));
+        menus.forEach(m => { if (m.images?.[0]) imageList.add(m.images[0]); });
+        info.imageUrls = Array.from(imageList);
+
+        return info;
+    } catch (e) {
+        console.warn('[Crawler] Apollo State parsing failed:', e);
+        return null;
+    }
+}
+
 // ============================================
 // 메인 크롤링 오케스트레이터
 // ============================================
 
 export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
-    console.log('[Crawler] Starting 2-Step API Crawler. Target URL:', url);
+    console.log('[Crawler] Starting Advanced API + State Crawler. Target URL:', url);
 
     const placeId = extractPlaceId(url);
     if (!placeId) {
         return { success: false, error: 'INVALID_URL' };
-    }
-    if (placeId === 'SHORT_URL') {
-        return { success: false, error: 'SHORT_URL_NOT_SUPPORTED' }; // 네이버 단축 URL은 백엔드 Redirect 이후 넘겨야 함
     }
 
     // 데이터 합성을 위한 빈 객체
@@ -278,48 +369,66 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
 
     try {
         // ---------------------------------------------------------
-        // 단계 1: 네이버 지역 검색 API 
-        // (차단 위험이 없으며 Vercel 서버에서 즉시 작동을 보장)
+        // 단계 0: HTML 스크래핑 및 Apollo State 파싱 (가장 상세함)
         // ---------------------------------------------------------
-        console.log('[Crawler] Step 1: Attempting Local Search API');
-        const queryName = await extractPlaceName(url, placeId);
+        console.log('[Crawler] Step 0: Fetching HTML for State Extraction');
+        const targetUrl = url.includes('m.place.naver.com') ? url : `https://m.place.naver.com/restaurant/${placeId}/home`;
 
-        let step1Data: Partial<PlaceInfo> | null = null;
-        if (queryName) {
-            step1Data = await fetchNaverLocalAPI(queryName, placeId);
+        try {
+            const res = await fetch(targetUrl, {
+                headers: BROWSER_HEADERS,
+                timeout: 8000
+            } as any);
+            const html = await res.text();
+            const stateData = await extractFromApolloState(html);
+
+            if (stateData) {
+                console.log('[Crawler] Step 0 Success: Extracted from Apollo State');
+                Object.assign(mergedData, stateData);
+            }
+        } catch (e) {
+            console.warn('[Crawler] Step 0 Failed:', e);
         }
 
-        if (step1Data) {
-            console.log('[Crawler] Step 1 Success:', step1Data.name);
-            Object.assign(mergedData, step1Data);
+        // ---------------------------------------------------------
+        // 단계 1: 네이버 지역 검색 API (정보 보완)
+        // ---------------------------------------------------------
+        if (!mergedData.name) {
+            console.log('[Crawler] Step 1: Attempting Local Search API');
+            const queryName = await extractPlaceName(url, placeId);
+            if (queryName) {
+                const step1Data = await fetchNaverLocalAPI(queryName, placeId);
+                if (step1Data) {
+                    console.log('[Crawler] Step 1 Success:', step1Data.name);
+                    Object.assign(mergedData, step1Data);
+                }
+            }
         }
 
         // ---------------------------------------------------------
-        // 단계 2: 네이버 GraphQL 조회
-        // (메뉴, 영업시간, 평점 등을 보충하기 위함, 실패해도 멈추지 않음)
+        // 단계 2: 네이버 GraphQL 조회 (최종 보완)
         // ---------------------------------------------------------
-        console.log('[Crawler] Step 2: Attempting GraphQL Detail API');
-        const step2Data = await fetchPlaceDetailGraphQL(placeId);
-
-        for (const [key, value] of Object.entries(step2Data)) {
-            // 이미 1단계에서 들어온 값이 의미있으면 유지하고, 2단계에서 새롭게 얻은 배열(메뉴 등)이나 값만 병합
-            if (value && (!mergedData[key as keyof PlaceInfo] || (Array.isArray(value) && value.length > 0))) {
-                (mergedData as any)[key] = value;
+        if (!mergedData.businessHours || mergedData.menuItems.length === 0) {
+            console.log('[Crawler] Step 2: Attempting GraphQL Detail API');
+            const step2Data = await fetchPlaceDetailGraphQL(placeId);
+            for (const [key, value] of Object.entries(step2Data)) {
+                if (value && (!mergedData[key as keyof PlaceInfo] || (Array.isArray(value) && value.length === 0))) {
+                    (mergedData as any)[key] = value;
+                }
             }
         }
 
         // ---------------------------------------------------------
         // 최종 검증 및 결합
         // ---------------------------------------------------------
-        const hasBasicInfo = !!(mergedData.name && mergedData.address);
-        // 메뉴 정보나 영업시간 등 부가 정보가 비어있다면 Manual Input 유도
+        const hasBasicInfo = !!(mergedData.name && (mergedData.address || mergedData.roadAddress));
         const lacksDetails = !mergedData.menuItems || mergedData.menuItems.length === 0 || !mergedData.businessHours;
 
         if (!hasBasicInfo) {
-            console.warn('[Crawler] All steps failed to extract basic info. Falling back to manual input.');
+            console.warn('[Crawler] Failed to extract basic info.');
             return {
-                success: true,  // 폼으로 넘기기 위해 true 반환
-                method: 'api_fallback',
+                success: true,
+                method: 'fallback',
                 needsManualInput: true,
                 partialData: mergedData
             };
@@ -327,14 +436,14 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
 
         return {
             success: true,
-            method: "api_combo",
+            method: mergedData.businessHours ? "state_extraction" : "api_combo",
             data: mergedData,
-            needsManualInput: lacksDetails, // 상세 정보 누락 시 입력 폼 등장
-            partialData: lacksDetails ? mergedData : undefined // 입력 폼에 미리 채워넣을 값
+            needsManualInput: lacksDetails,
+            partialData: mergedData
         };
 
     } catch (error: any) {
-        console.error('[Crawler] Fatal orchestration error. Recovering smoothly...', error);
+        console.error('[Crawler] Fatal orchestration error:', error);
         return {
             success: true,
             method: "error_fallback",
@@ -343,3 +452,4 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
         };
     }
 }
+
