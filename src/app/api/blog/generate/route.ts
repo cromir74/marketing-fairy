@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { generateBlogPost } from "@/lib/blog-generator";
 import { crawlData } from "@/lib/blog-crawler";
 import { createClient } from "@/lib/supabase/server";

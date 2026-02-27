@@ -1,6 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let aiInstance: GoogleGenAI | null = null;
+function getAI() {
+    if (!aiInstance) {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not defined in environment variables");
+        }
+        aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    }
+    return aiInstance;
+}
 
 // ── 마케팅 콘텐츠 생성 ──
 export async function generateMarketingContent(
@@ -104,7 +113,7 @@ ${platformGuide[platform]}
 
     console.log("[Gemini] Generating marketing content (Model: gemini-2.5-flash)...");
 
-    const response = await (ai as any).models.generateContent({
+    const response = await (getAI() as any).models.generateContent({
         model: "gemini-2.5-flash",
         contents: [
             {
@@ -155,7 +164,7 @@ export async function suggestTopics(
 계절, 요일, 트렌드를 반영해줘.
 JSON 배열 형태로만 응답해. 예: ["주제1", "주제2", ...]`;
 
-    const response = await (ai as any).models.generateContent({
+    const response = await (getAI() as any).models.generateContent({
         model: "gemini-2.5-flash",
         contents: prompt,
         config: {
@@ -179,7 +188,7 @@ export async function analyzeImage(images: { base64: string, mimeType: string }[
         inlineData: { data: img.base64, mimeType: img.mimeType }
     }));
 
-    const response = await (ai as any).models.generateContent({
+    const response = await (getAI() as any).models.generateContent({
         model: "gemini-2.5-flash",
         contents: [
             {
@@ -232,7 +241,7 @@ ${category}
   "summary": "종합적인 법적 위험도 요약 (1줄)"
 }`;
 
-    const response = await (ai as any).models.generateContent({
+    const response = await (getAI() as any).models.generateContent({
         model: "gemini-2.5-flash",
         contents: prompt,
         config: {
