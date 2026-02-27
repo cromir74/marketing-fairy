@@ -116,12 +116,12 @@ export default function PricingPage() {
             </div>
 
             {/* Pricing Cards */}
-            <div className="max-w-5xl mx-auto space-y-6 md:space-y-0 md:grid md:grid-cols-2 md:gap-8 mb-24 w-full box-border px-4 sm:px-0">
+            <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 mb-24 w-full box-border px-4 sm:px-0">
                 {/* Basic Plan */}
-                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-xl shadow-gray-100/50 flex flex-col hover:border-primary-200 transition-all w-full max-w-full sm:max-w-none mx-auto box-border overflow-hidden">
+                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-primary-200 transition-all w-full max-w-full sm:max-w-none mx-auto box-border overflow-hidden">
                     <div className="flex justify-between items-start mb-4 sm:mb-6">
                         <div>
-                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">베이직</h3>
+                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-display">베이직</h3>
                             <p className="text-gray-500 text-sm font-medium">SNS 자동화의 시작</p>
                         </div>
                         <div className="bg-gray-50 p-2 rounded-xl">
@@ -132,49 +132,38 @@ export default function PricingPage() {
                     <div className="mb-6 sm:mb-8">
                         <div className="flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
                             <span className="text-gray-400 line-through text-sm sm:text-lg font-bold">₩150,000</span>
-                            <span className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight">₩120,000</span>
+                            <span className="text-2xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight">₩120,000</span>
                             <span className="text-gray-500 text-xs sm:text-sm font-bold">/월</span>
                         </div>
-                        <p className="text-[10px] sm:text-xs font-bold text-primary-600 mt-2 flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            선착순 1차 얼리버드 할인가 적용
-                        </p>
                     </div>
 
-                    <Button
-                        variant="secondary"
-                        className="w-full h-14 text-sm sm:text-base font-bold bg-gray-50 border border-gray-200 text-gray-900 hover:bg-gray-100 transition-all rounded-2xl"
+                    <ul className="space-y-3.5 sm:space-y-5 mb-8 sm:mb-10 flex-grow">
+                        <FeatureItem text="AI 마케팅 글 자동 생성" />
+                        <FeatureItem text="인스타그램 자동 발행 (월 30건)" />
+                        <FeatureItem text="스레드 자동 발행 (월 30건)" />
+                        <FeatureItem text="네이버 플레이스 기본 분석" />
+                        <FeatureItem text="예약 발행 및 법적 규제 검토" />
+                        <FeatureItem text="네이버 블로그 자동 발행" excluded />
+                    </ul>
+
+                    <button
                         onClick={() => handlePayment("basic")}
+                        className="w-full flex justify-center items-center h-14 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-bold hover:bg-gray-100 transition-all"
                     >
                         베이직 시작하기
-                    </Button>
-
-                    <div className="mt-8 space-y-4 flex-grow">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">포함된 기능:</p>
-                        <ul className="space-y-3.5 flex-col">
-                            <FeatureItem text="AI 마케팅 글 자동 생성" />
-                            <FeatureItem text="인스타그램 자동 발행 (월 30건)" />
-                            <FeatureItem text="스레드 자동 발행 (월 30건)" />
-                            <FeatureItem text="네이버 플레이스 기본 분석" />
-                            <FeatureItem text="예약 발행 및 법적 규제 검토" />
-                            <div className="pt-2 space-y-3.5">
-                                <FeatureItem text="네이버 블로그 발행" disabled />
-                                <FeatureItem text="마케팅 캘린더 (시즌/요일 전략)" disabled />
-                            </div>
-                        </ul>
-                    </div>
+                    </button>
                 </div>
 
                 {/* Pro Plan */}
-                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-2xl shadow-primary-100/50 flex flex-col md:scale-105 relative z-10 transition-all w-full max-w-full sm:max-w-none mx-auto box-border mt-4 md:mt-0 overflow-hidden">
+                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative md:-translate-y-4 w-full max-w-full sm:max-w-none mx-auto box-border overflow-hidden">
                     <div className="absolute top-4 right-5 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5 z-20">
-                        <Sparkles className="w-3 h-3 text-yellow-400" fill="currentColor" />
+                        <Zap className="w-3 h-3 text-yellow-400" fill="currentColor" />
                         가장 인기
                     </div>
 
                     <div className="flex justify-between items-start mb-4 sm:mb-6">
                         <div>
-                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">프로</h3>
+                            <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-display">프로</h3>
                             <div className="flex flex-col gap-1">
                                 <p className="text-primary-600 text-sm font-bold">완벽한 AI 마케팅 솔루션</p>
                                 {!loading && earlybird.tier1 > 0 && (
@@ -190,14 +179,14 @@ export default function PricingPage() {
                             </div>
                         </div>
                         <div className="bg-primary-50 p-2 rounded-xl">
-                            <Crown className="h-5 w-5 text-primary-600" />
+                            <Sparkles className="h-5 w-5 text-primary-600" />
                         </div>
                     </div>
 
                     <div className="mb-6 sm:mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
                         <div className="flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
                             <span className="text-gray-400 line-through text-sm sm:text-lg font-bold">₩290,000</span>
-                            <span className="text-2xl sm:text-4xl md:text-5xl font-black text-gray-900 tracking-tight">₩230,000</span>
+                            <span className="text-2xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight">₩230,000</span>
                             <span className="text-gray-500 text-xs sm:text-sm font-bold">/월</span>
                         </div>
                         <p className="text-[10px] sm:text-xs font-bold text-primary-600 mt-2 flex items-center gap-1">
@@ -206,23 +195,20 @@ export default function PricingPage() {
                         </p>
                     </div>
 
-                    <Button
-                        className="w-full h-14 text-sm sm:text-base font-bold bg-primary-500 hover:bg-primary-600 text-white shadow-lg shadow-primary-500/20 rounded-2xl transition-all"
+                    <ul className="space-y-3.5 sm:space-y-5 mb-8 sm:mb-10 flex-grow font-medium text-gray-900">
+                        <FeatureItem text="베이직의 모든 기능 포함" highlight />
+                        <FeatureItem text="네이버 블로그 자동 발행 (월 30건)" highlight />
+                        <FeatureItem text="마케팅 캘린더 (시즌/요일 전략)" highlight />
+                        <FeatureItem text="페르소나 마케팅 전체 (기본+확장)" highlight />
+                        <FeatureItem text="네이버 플레이스 심화 분석" highlight />
+                    </ul>
+
+                    <button
                         onClick={() => handlePayment("pro")}
+                        className="w-full flex justify-center items-center h-14 rounded-2xl bg-primary-500 text-white font-bold hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20"
                     >
                         프로 시작하기
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-
-                    <div className="mt-8 space-y-4 flex-grow bg-primary-50/30 -mx-5 -mb-5 sm:-mx-10 sm:-mb-10 p-5 sm:p-10 rounded-b-[2rem]">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">베이직의 모든 기능 +</p>
-                        <ul className="space-y-3.5 flex-col">
-                            <FeatureItem text="네이버 블로그 자동 발행 (월 30건)" highlight />
-                            <FeatureItem text="마케팅 캘린더 (시즌/요일 전략 제안)" highlight />
-                            <FeatureItem text="페르소나 마케팅 전체 (기본 + 확장 + 커스텀)" highlight />
-                            <FeatureItem text="네이버 플레이스 심화 분석" highlight />
-                        </ul>
-                    </div>
+                    </button>
                 </div>
             </div>
 
@@ -243,17 +229,13 @@ export default function PricingPage() {
     );
 }
 
-function FeatureItem({ text, disabled = false, highlight = false, icon }: { text: string, disabled?: boolean, highlight?: boolean, icon?: React.ReactNode }) {
+function FeatureItem({ text, highlight = false, excluded = false }: { text: string, highlight?: boolean; excluded?: boolean }) {
     return (
-        <div className={`flex items-start gap-2 sm:gap-3 ${disabled ? "opacity-30" : "opacity-100"}`}>
-            <div className={`shrink-0 mt-0.5`}>
-                {icon ? icon : (
-                    disabled ? <X className="h-4 w-4 text-gray-400" /> : <Check className={`h-4 w-4 ${highlight ? "text-primary-600" : "text-emerald-500"}`} />
-                )}
+        <li className={`flex items-start gap-2 sm:gap-3 ${excluded ? "opacity-50" : ""}`}>
+            <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${highlight ? "bg-primary-100 text-primary-600" : excluded ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
+                {excluded ? <X className="w-3 sm:w-3.5 h-3 sm:h-3.5 font-bold" /> : <Check className="w-3 sm:w-3.5 h-3 sm:h-3.5 font-bold" />}
             </div>
-            <span className={`text-[13px] sm:text-sm flex-1 break-keep [word-break:keep-all] [overflow-wrap:anywhere] leading-[1.3] ${highlight ? "font-bold text-gray-900" : "text-gray-600"} ${disabled ? "line-through" : ""}`}>
-                {text}
-            </span>
-        </div>
+            <span className={`flex-1 break-keep [word-break:keep-all] [overflow-wrap:anywhere] leading-[1.3] text-[13px] sm:text-base ${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
+        </li>
     );
 }
