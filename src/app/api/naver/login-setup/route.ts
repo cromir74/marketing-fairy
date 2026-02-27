@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+export const dynamic = "force-dynamic";
 import { NaverAutomation } from '@/lib/naver-automation';
 import { createClient } from '@/lib/supabase/server';
 
