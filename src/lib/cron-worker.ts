@@ -13,9 +13,11 @@ export function startCronWorker() {
 }
 
 async function pingCron() {
-    const port = process.env.PORT || 3000;
-    const publishUrl = `http://localhost:${port}/api/cron/publish`;
-    const billingUrl = `http://localhost:${port}/api/cron/billing`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+
+    const publishUrl = `${baseUrl}/api/cron/publish`;
+    const billingUrl = `${baseUrl}/api/cron/billing`;
 
     // 콘텐츠 발행 크론
     try {
