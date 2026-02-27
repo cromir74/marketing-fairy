@@ -62,8 +62,12 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
         const res = await fetch(mobileUrl, {
             headers: {
                 'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-                'Cache-Control': 'no-cache'
+                'Referer': 'https://m.search.naver.com/',
+                'Cache-Control': 'no-cache',
+                'sec-ch-ua-mobile': '?1',
+                'sec-ch-ua-platform': '"iOS"'
             }
         });
 
