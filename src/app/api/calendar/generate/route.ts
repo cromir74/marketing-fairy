@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
+export const dynamic = "force-dynamic";
 import { createClient } from "@/lib/supabase/server";
 import { GoogleGenAI } from "@google/genai";
 import { HOLIDAYS } from "@/lib/calendar-events";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let aiInstance: GoogleGenAI | null = null;
+function getAI() {
+    if (!aiInstance) {
+        if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY is not defined in environment variables");
+        }
+        aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    }
+    return aiInstance;
+}
+
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
@@ -81,7 +92,7 @@ ${Object.entries(targetHolidays).map(([day, name]) => `${day}일: ${name}`).join
 
         console.log(`[Gemini API] Generating ${year}-${month + 1} calendar for ${storeName}...`);
 
-        const response = await (ai as any).models.generateContent({
+        const response = await (getAI() as any).models.generateContent({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
