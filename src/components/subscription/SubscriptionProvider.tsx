@@ -21,9 +21,14 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     const [usage, setUsage] = useState<any>(null);
     const [dailyPublishUsage, setDailyPublishUsage] = useState({ instagram: 0, threads: 0 });
     const [loading, setLoading] = useState(true);
-    const supabase = createClient();
+    // 빌드 타임(SSR) 에러 방지를 위해 useMemo 사용
+    const supabase = React.useMemo(() => {
+        if (typeof window === "undefined") return null;
+        return createClient();
+    }, []);
 
     const fetchSubscription = useCallback(async () => {
+        if (!supabase) return;
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 

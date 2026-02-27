@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CalendarCheck } from "lucide-react";
