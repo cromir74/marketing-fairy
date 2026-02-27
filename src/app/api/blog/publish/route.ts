@@ -6,6 +6,7 @@ import fs from 'fs';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@/lib/supabase/server';
+import { decrypt } from '@/lib/crypto';
 
 export async function POST(req: Request) {
     let automation: NaverAutomation | null = null;
@@ -61,16 +62,35 @@ export async function POST(req: Request) {
             savedImagePaths.push({ path: filePath, mimeType: img.mimeType });
         }
 
-        // 2. 자동화 엔진 실행
+        // 2. 해당 유저의 네이버 연동 쿠키를 DB에서 조회
+        const { data: conn, error: connErr } = await supabase
+            .from('naver_connections')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .single();
+
+        if (connErr || !conn) {
+            return NextResponse.json({
+                error: "네이버 블로그 연동이 필요합니다. 대시보드에서 네이버 계정을 연동해주세요."
+            }, { status: 400 });
+        }
+
+        const nidAut = decrypt(conn.nid_aut);
+        const nidSes = decrypt(conn.nid_ses);
+        // blogId 는 요청 본문 id 거나 연결된 conn.blog_id 우선
+        const finalBlogId = id || conn.blog_id;
+
+        // 3. 자동화 엔진 실행
         automation = new NaverAutomation();
         await automation.initialize();
 
-        // 2-1. 환경변수 쿠키로 로그인 시도
-        const loggedIn = await automation.loginWithEnvCookies();
+        // 3-1. DB에서 조회한 쿠키로 설정
+        const loggedIn = await automation.setCookies(nidAut, nidSes);
 
         if (!loggedIn) {
             return NextResponse.json({
-                error: "네이버 쿠키가 설정되지 않았거나 만료되었습니다. .env의 NID_AUT, NID_SES를 갱신해주세요."
+                error: "네이버 연동 쿠키 설정 중 오류가 발생했습니다."
             }, { status: 401 });
         }
 
@@ -78,7 +98,7 @@ export async function POST(req: Request) {
         const publishedUrl = await automation.publish({
             title,
             content,
-            blogId: id,
+            blogId: finalBlogId,
             images: savedImagePaths,
             mode,
             scheduledTime,

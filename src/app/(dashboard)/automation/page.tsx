@@ -187,15 +187,21 @@ function AutomationPageContent() {
 
     // 네이버 세션 동기화 상태
     const [hasSavedCookies, setHasSavedCookies] = useState(false);
+    const [naverStatusInfo, setNaverStatusInfo] = useState<{ blogId: string; expiresAt: string; } | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
-    const [captchaUrl, setCaptchaUrl] = useState<string | null>(null);
 
     // 쿠키 상태 확인
     const checkCookieStatus = async () => {
         try {
-            const res = await fetch("/api/naver/login-setup");
+            const res = await fetch("/api/naver/status");
             const data = await res.json();
-            setHasSavedCookies(data.hasConfigured);
+            if (data.isConnected) {
+                setHasSavedCookies(true);
+                setNaverStatusInfo({ blogId: data.blogId, expiresAt: data.expiresAt });
+            } else {
+                setHasSavedCookies(false);
+                setNaverStatusInfo(null);
+            }
         } catch (e) {
             console.error("Failed to check cookie status:", e);
         }
@@ -203,29 +209,28 @@ function AutomationPageContent() {
 
     useEffect(() => {
         checkCookieStatus();
+
+        const handleMessage = (e: MessageEvent) => {
+            if (e.data?.type === 'NAVER_LOGIN_SUCCESS') {
+                checkCookieStatus();
+                alert("네이버 블로그 연동이 완료되었습니다.");
+            }
+        };
+        window.addEventListener("message", handleMessage);
+        return () => window.removeEventListener("message", handleMessage);
     }, []);
 
     const handleSyncNaver = async () => {
-        setIsSyncing(true);
-        setCaptchaUrl(null);
-        try {
-            const res = await fetch("/api/naver/login-setup", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setHasSavedCookies(true);
-                alert("네이버 세션 쿠키가 유효합니다! 무인 포스팅이 가능합니다.");
-            } else {
-                setHasSavedCookies(false);
-                alert(data.error || "쿠키가 만료되었거나 설정되지 않았습니다.");
-            }
-        } catch (err) {
-            alert("서버와 통신 중 오류가 발생했습니다.");
-        } finally {
-            setIsSyncing(false);
-        }
+        const width = 600;
+        const height = 800;
+        const left = (window.screen.width / 2) - (width / 2);
+        const top = (window.screen.height / 2) - (height / 2);
+
+        window.open(
+            '/api/naver/login-proxy',
+            'NaverLogin',
+            `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes,resizable=yes`
+        );
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -742,56 +747,39 @@ function AutomationPageContent() {
                                 </span>
                             </div>
                         </div>
-                        <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div className="bg-gray-50/50 rounded-xl p-5 border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
                             <div className="flex-1">
-                                <h3 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-2">
-                                    <Cookie className="h-4 w-4 text-blue-600" />
-                                    환경변수 쿠키 기반 로그인 (Manual Session)
-                                </h3>
-                                <p className="text-xs text-blue-700 leading-relaxed">
-                                    네이버의 강력한 보안 정책으로 인해 수동 쿠키 설정 방식을 사용합니다.
-                                    서버의 <b>.env</b> 파일에 <b>NAVER_NID_AUT</b>, <b>NAVER_NID_SES</b>를 설정해주세요.
-                                </p>
+                                {hasSavedCookies ? (
+                                    <>
+                                        <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                            <Check className="h-4 w-4 text-emerald-500" />
+                                            네이버 블로그 연동 중
+                                        </h3>
+                                        <p className="text-xs text-gray-600 leading-relaxed">
+                                            연동된 블로그 ID: <b>{naverStatusInfo?.blogId || '알 수 없음'}</b><br />
+                                            만료 예정일: <b>{naverStatusInfo?.expiresAt ? new Date(naverStatusInfo.expiresAt).toLocaleDateString() : '알 수 없음'}</b>
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
+                                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                            네이버 블로그 연동 필요
+                                        </h3>
+                                        <p className="text-xs text-gray-600 leading-relaxed">
+                                            자동 포스팅을 위해 네이버 계정을 연동해주세요.<br />
+                                            최초 1회 로그인만 하시면 안전하게 연동됩니다. (비밀번호 저장 안함)
+                                        </p>
+                                    </>
+                                )}
                             </div>
                             <Button
-                                variant="secondary"
-                                className={`h-11 px-6 border-blue-200 text-blue-700 hover:bg-white transition-all shadow-sm ${isSyncing ? "animate-pulse" : ""}`}
+                                variant={hasSavedCookies ? "secondary" : "primary"}
+                                className={`h-11 px-6 ${hasSavedCookies ? "border-gray-200 text-gray-700 hover:bg-gray-50" : "bg-[#03C75A] hover:bg-[#03b351] text-white"} transition-all shadow-sm`}
                                 onClick={handleSyncNaver}
-                                disabled={isSyncing}
                             >
-                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                                세션 상태 확인
+                                {hasSavedCookies ? "다른 계정으로 연동" : "네이버 연동하기"}
                             </Button>
-                        </div>
-
-                        {captchaUrl && (
-                            <div className="mt-4 p-4 border border-amber-100 bg-amber-50 rounded-xl animate-in fade-in slide-in-from-top-2">
-                                <p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3" /> 보안 문자가 발생했습니다
-                                </p>
-                                <div className="bg-white p-2 rounded-lg border border-amber-200 inline-block mb-2">
-                                    <img src={captchaUrl} alt="Captcha" className="h-12" />
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <p className="text-[11px] font-bold text-gray-700 mb-1">💡 쿠키 가져오는 방법</p>
-                                <ol className="text-[10px] text-gray-500 space-y-1 list-decimal ml-4">
-                                    <li>PC 크롬에서 네이버 로그인</li>
-                                    <li>F12 → Application → Cookies → naver.com</li>
-                                    <li>NID_AUT, NID_SES 값 복사</li>
-                                </ol>
-                            </div>
-                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                <p className="text-[11px] font-bold text-gray-700 mb-1">📟 서버 설정 방법</p>
-                                <p className="text-[10px] text-gray-500 leading-relaxed">
-                                    서버 SSH 접속 후 .env 파일 수정:<br />
-                                    <code className="bg-gray-200 px-1 rounded text-red-600">NAVER_NID_AUT=값</code><br />
-                                    <code className="bg-gray-200 px-1 rounded text-red-600">NAVER_NID_SES=값</code>
-                                </p>
-                            </div>
                         </div>
                     </section>
 

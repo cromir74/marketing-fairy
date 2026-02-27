@@ -30,15 +30,12 @@ export class NaverAutomation {
     }
 
     async hasSavedCookies(): Promise<boolean> {
-        return !!process.env.NAVER_NID_AUT && !!process.env.NAVER_NID_SES;
+        return !!this.cookieStr;
     }
 
-    async loginWithEnvCookies(): Promise<boolean> {
-        const nidAut = process.env.NAVER_NID_AUT;
-        const nidSes = process.env.NAVER_NID_SES;
-
+    async setCookies(nidAut: string, nidSes: string): Promise<boolean> {
         if (!nidAut || !nidSes) {
-            this.addLog("환경변수(NAVER_NID_AUT, NAVER_NID_SES)가 설정되지 않았습니다.", "error");
+            this.addLog("유효하지 않은 쿠키 값이 전달되었습니다.", "error");
             return false;
         }
 
