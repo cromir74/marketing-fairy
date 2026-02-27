@@ -1,0 +1,32 @@
+name: Deploy to Naver Cloud
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Execute remote commands via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script: |
+            cd /root/marketing-fairy
+            git pull origin master
+            # Check if .env.local exists and contains SITE_URL
+            if ! grep -q "NEXT_PUBLIC_SITE_URL" .env.local 2>/dev/null; then
+              echo "NEXT_PUBLIC_SITE_URL=http://49.50.138.92:3000" >> .env.local
+            fi
+            npm install
+            npm run build
+            pm2 restart all || pm2 start npm --name "marketing-fairy" -- start
