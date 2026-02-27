@@ -520,31 +520,28 @@ export default function StorePage() {
                             )}
 
                             <div className="flex items-center gap-3">
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isUploading || photos.length >= 5}
-                                    className="border-dashed h-24 w-full text-gray-500 hover:text-gray-700 hover:bg-gray-50 active:bg-gray-100 relative"
+                                <div
+                                    className={`relative flex items-center justify-center border-2 border-dashed rounded-xl h-24 w-full transition-all cursor-pointer bg-white hover:bg-gray-50 active:bg-gray-100 ${isUploading || photos.length >= 5 ? 'opacity-50 cursor-not-allowed' : 'border-gray-200 text-gray-500'}`}
                                 >
                                     {isUploading ? (
-                                        <><Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" /> 업로드 중...</>
+                                        <div className="flex items-center text-sm"><Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" /> 업로드 중...</div>
                                     ) : (
                                         <div className="flex flex-col items-center gap-1 pointer-events-none">
                                             <Upload className="w-5 h-5 text-gray-400" />
-                                            <span>사진 추가하기 ({photos.length}/5)</span>
+                                            <span className="text-sm font-medium">사진 추가하기 ({photos.length}/5)</span>
                                         </div>
                                     )}
-                                    <input
-                                        type="file"
-                                        ref={fileInputRef}
-                                        onChange={handleFileUpload}
-                                        accept="image/*"
-                                        multiple
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        title="사진 선택"
-                                    />
-                                </Button>
+                                    {!isUploading && photos.length < 5 && (
+                                        <input
+                                            type="file"
+                                            onChange={handleFileUpload}
+                                            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                                            multiple
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30"
+                                            style={{ fontSize: '16px' }}
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

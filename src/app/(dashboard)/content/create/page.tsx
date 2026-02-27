@@ -869,18 +869,18 @@ function ContentCreatePageContent() {
                             ))}
 
                             {images.length < 10 && (
-                                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/30 transition-all active:bg-primary-50 relative">
+                                <div className="relative flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/30 transition-all active:scale-[0.98] overflow-hidden">
                                     <ImagePlus className="h-6 w-6 text-gray-300 mb-1 pointer-events-none" />
                                     <span className="text-[10px] text-gray-400 pointer-events-none">사진 추가</span>
                                     <input
                                         type="file"
                                         multiple
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                                         onChange={handleImageChange}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        title="사진 선택"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                        style={{ fontSize: '16px' }} // iOS zoom 방지 및 브라우저 인식 향상
                                     />
-                                </label>
+                                </div>
                             )}
                         </div>
                     </Card>

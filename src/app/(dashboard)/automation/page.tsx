@@ -736,15 +736,16 @@ function AutomationPageContent() {
                                     <Images className="h-4 w-4 text-gray-400" />
                                     사진 첨부
                                 </label>
-                                <div className="relative rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center hover:bg-gray-100/50 transition-colors cursor-pointer group">
+                                <div className="relative rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center hover:bg-gray-100/50 transition-colors cursor-pointer group active:scale-[0.99] overflow-hidden">
                                     <input
                                         type="file"
                                         multiple
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                                         onChange={handleImageUpload}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                        style={{ fontSize: '16px' }}
                                     />
-                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3 group-hover:bg-white group-hover:text-primary-600 transition-colors">
+                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 mb-3 group-hover:bg-white group-hover:text-primary-600 transition-colors pointer-events-none">
                                         <Images className="h-6 w-6 text-gray-400 group-hover:text-primary-600" />
                                     </div>
                                     <span className="font-medium text-gray-900 block relative pointer-events-none">사진을 여기로 드래그하거나 클릭하여 업로드</span>
