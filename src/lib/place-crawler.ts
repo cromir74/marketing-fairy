@@ -11,6 +11,8 @@ export interface PlaceData {
     rating?: number;
 }
 
+import * as cheerio from 'cheerio';
+
 export async function extractPlaceData(url: string): Promise<PlaceData | null> {
     let targetUrl = url;
 
@@ -53,6 +55,93 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
     }
 
     console.log(`[Crawler] Final Mobile URL: ${mobileUrl}`);
+
+    // --- 1단계: Cheerio 기반 고밀도 데이터 추출 (브라우저 없이 소스 파싱) ---
+    try {
+        console.log("[Crawler] Starting high-performance Fetch/Cheerio extraction...");
+        const res = await fetch(mobileUrl, {
+            headers: {
+                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+            }
+        });
+        const html = await res.text();
+        const $ = cheerio.load(html);
+
+        // 네이버 플레이스는 __INITIAL_STATE__ 스크립트 태그에 거의 모든 정보가 포함되어 있음
+        const scripts = $('script').toArray();
+        const stateScript = scripts.find(s => {
+            const content = $(s).text() || "";
+            return content.includes('__INITIAL_STATE__') || content.includes('__APOLLO_STATE__');
+        });
+
+        if (stateScript) {
+            const stateText = $(stateScript).text() || "";
+            // 정규식으로 JSON 추출 (여러 변수명 대응)
+            const jsonMatch = stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*?});/) ||
+                stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*})/);
+
+            const jsonText = jsonMatch ? jsonMatch[1] : null;
+
+            if (jsonText) {
+                try {
+                    const state = JSON.parse(jsonText);
+                    // 1. __INITIAL_STATE__ 방식 (기존)
+                    let place = state.place?.rootData?.place || state.place?.place || state.placeDetail?.rootData?.place;
+
+                    // 2. __APOLLO_STATE__ 방식 (신규)
+                    if (!place) {
+                        const placeKey = Object.keys(state).find(k => k.startsWith('Place:')) ||
+                            Object.keys(state).find(k => k.startsWith('BusinessBase:'));
+                        if (placeKey) {
+                            place = state[placeKey];
+                            console.log(`[Crawler] Found data in Apollo state with key: ${placeKey}`);
+                        }
+                    }
+
+                    if (place) {
+                        console.log(`[Crawler] Successfully parsed state for: ${place.name || place.title}`);
+
+                        // 상세 영업시간 조립
+                        let bHours = "";
+                        const bizHours = place.bizHour || place.businessHours?.bizHours || place.bizHourInfo;
+                        if (Array.isArray(bizHours)) {
+                            bHours = bizHours.map((h: any) => {
+                                const day = h.day || h.type;
+                                let time = h.businessTime || h.time || "";
+                                if (h.breakTime) time += ` (브레이크타임 ${h.breakTime})`;
+                                if (h.lastOrder) time += ` (라스트오더 ${h.lastOrder})`;
+                                return `${day}: ${time}`;
+                            }).join("\n");
+                        } else if (typeof bizHours === 'string') {
+                            bHours = bizHours;
+                        }
+
+                        // 메뉴/키워드 추출
+                        const menus = (place.menuInfo?.menus || []).map((m: any) => m.name || m.label).slice(0, 5);
+                        const keywords = (place.visitorReviewStats?.analysis?.themes || []).map((t: any) => t.label || t.text).slice(0, 8);
+
+                        return {
+                            name: place.name || place.title || "매장명 확인 불가",
+                            category: place.category || place.categoryPath?.slice(-1)[0] || "업종 정보 없음",
+                            description: place.description || "",
+                            menus: menus.length > 0 ? menus : ["메뉴 정보 없음"],
+                            reviewKeywords: keywords.length > 0 ? keywords : ["검색된 키워드 없음"],
+                            photos: [],
+                            phone: place.phone || place.tel || "",
+                            address: place.roadAddress || place.address || "",
+                            businessHours: bHours || place.bizHourInfo || "",
+                            rating: place.visitorReviewScore || 0
+                        };
+                    }
+                } catch (e: any) {
+                    console.error("[Crawler] JSON Parsing failed", e.message);
+                }
+            }
+        }
+        console.log("[Crawler] Cheerio extraction couldn't find valid JSON state, falling back to Puppeteer...");
+    } catch (e: any) {
+        console.warn("[Crawler] Cheerio extraction failed, trying Puppeteer fallback...", e.message);
+    }
 
     let browser;
     try {
