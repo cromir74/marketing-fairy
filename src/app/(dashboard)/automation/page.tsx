@@ -183,29 +183,77 @@ function AutomationPageContent() {
     const [scheduledHour, setScheduledHour] = useState("10");
     const [scheduledMinute, setScheduledMinute] = useState("00");
 
-    // 이미지 첨부 핸들러
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files);
 
-        // Base64 변환 후 저장 (API 전송을 위함)
-        const readers = newFiles.map(file => {
-            return new Promise<void>((resolve) => {
+        if (images.length + newFiles.length > 10) {
+            alert("최대 10장까지 업로드 가능합니다.");
+            return;
+        }
+
+        setIsGenerating(true); // 압축 로딩 표시용으로 사용 (또는 별도 상태 추가 가능)
+
+        const processFile = (file: File): Promise<{ url: string; file: File; base64: string; mimeType: string }> => {
+            return new Promise((resolve) => {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    setImages(prev => [...prev, {
-                        url: URL.createObjectURL(file),
-                        file,
-                        base64: (reader.result as string).split(',')[1],
-                        mimeType: file.type
-                    }]);
-                    resolve();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target?.result as string;
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        let width = img.width;
+                        let height = img.height;
+                        const max_size = 1200;
+
+                        if (width > height) {
+                            if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
+                            }
+                        } else {
+                            if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx?.drawImage(img, 0, 0, width, height);
+
+                        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                        resolve({
+                            url: dataUrl,
+                            file: file, // 원본 참조 유지
+                            base64: dataUrl.split(',')[1],
+                            mimeType: "image/jpeg"
+                        });
+                    };
+                    img.onerror = () => {
+                        resolve({
+                            url: URL.createObjectURL(file),
+                            file: file,
+                            base64: (event.target?.result as string).split(',')[1],
+                            mimeType: file.type
+                        });
+                    };
                 };
                 reader.readAsDataURL(file);
             });
-        });
+        };
 
-        Promise.all(readers);
+        try {
+            const processedImages = await Promise.all(newFiles.map(processFile));
+            setImages(prev => [...prev, ...processedImages]);
+        } catch (err) {
+            console.error(err);
+            alert("이미지 처리 중 오류가 발생했습니다.");
+        } finally {
+            setIsGenerating(false);
+            if (e.target) e.target.value = "";
+        }
     };
 
     const removeImage = (index: number) => {

@@ -362,20 +362,66 @@ function ContentCreatePageContent() {
             return;
         }
 
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const result = reader.result as string;
-                setImages(prev => [
-                    ...prev,
-                    {
-                        preview: result,
-                        base64: result.split(",")[1],
-                        mimeType: file.type
-                    }
-                ]);
-            };
-            reader.readAsDataURL(file);
+        setLoading(true); // 압축 중 로딩 표시
+
+        const processFile = (file: File): Promise<{ preview: string, base64: string, mimeType: string }> => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target?.result as string;
+                    img.onload = () => {
+                        const canvas = document.createElement("canvas");
+                        let width = img.width;
+                        let height = img.height;
+                        const max_size = 1200;
+
+                        if (width > height) {
+                            if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
+                            }
+                        } else {
+                            if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx?.drawImage(img, 0, 0, width, height);
+
+                        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                        resolve({
+                            preview: dataUrl,
+                            base64: dataUrl.split(",")[1],
+                            mimeType: "image/jpeg"
+                        });
+                    };
+                    img.onerror = () => {
+                        // 이미지 로드 실패 시 원본 그대로 사용 시도
+                        resolve({
+                            preview: event.target?.result as string,
+                            base64: (event.target?.result as string).split(",")[1],
+                            mimeType: file.type
+                        });
+                    };
+                };
+                reader.readAsDataURL(file);
+            });
+        };
+
+        Promise.all(files.map(processFile)).then(newImages => {
+            setImages(prev => [...prev, ...newImages]);
+            setLoading(false);
+            // input 비우기
+            if (e.target) e.target.value = "";
+        }).catch(err => {
+            console.error(err);
+            setLoading(false);
+            alert("이미지 처리 중 오류가 발생했습니다.");
         });
     }
 
@@ -823,15 +869,16 @@ function ContentCreatePageContent() {
                             ))}
 
                             {images.length < 10 && (
-                                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/30 transition-all">
-                                    <ImagePlus className="h-6 w-6 text-gray-300 mb-1" />
-                                    <span className="text-[10px] text-gray-400">사진 추가</span>
+                                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50/30 transition-all active:bg-primary-50 relative">
+                                    <ImagePlus className="h-6 w-6 text-gray-300 mb-1 pointer-events-none" />
+                                    <span className="text-[10px] text-gray-400 pointer-events-none">사진 추가</span>
                                     <input
                                         type="file"
                                         multiple
                                         accept="image/*"
                                         onChange={handleImageChange}
-                                        className="hidden"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        title="사진 선택"
                                     />
                                 </label>
                             )}

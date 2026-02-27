@@ -116,32 +116,68 @@ export default function StorePage() {
             return;
         }
 
-        const newPhotos: string[] = [];
-        for (const file of files) {
-            if (file.size > 10 * 1024 * 1024) {
-                alert(`${file.name} 사진은 10MB를 초과하여 제외됩니다.`);
-                continue;
-            }
+        const processAndUpload = async (file: File) => {
+            return new Promise<string | null>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target?.result as string;
+                    img.onload = async () => {
+                        const canvas = document.createElement("canvas");
+                        let width = img.width;
+                        let height = img.height;
+                        const max_size = 1200;
 
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                        if (width > height) {
+                            if (width > max_size) {
+                                height *= max_size / width;
+                                width = max_size;
+                            }
+                        } else {
+                            if (height > max_size) {
+                                width *= max_size / height;
+                                height = max_size;
+                            }
+                        }
 
-            const { data, error } = await supabase.storage
-                .from('stores-photos')
-                .upload(fileName, file);
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx?.drawImage(img, 0, 0, width, height);
 
-            if (error) {
-                console.error("Upload error:", error);
-                alert(`${file.name} 업로드 실패: ${error.message}`);
-            } else if (data) {
-                const { data: publicData } = supabase.storage
-                    .from('stores-photos')
-                    .getPublicUrl(fileName);
-                newPhotos.push(publicData.publicUrl);
-            }
-        }
+                        canvas.toBlob(async (blob) => {
+                            if (!blob) {
+                                resolve(null);
+                                return;
+                            }
+                            const fileName = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+                            const { data, error } = await supabase.storage
+                                .from('stores-photos')
+                                .upload(fileName, blob, { contentType: 'image/jpeg' });
 
-        setPhotos(prev => [...prev, ...newPhotos]);
+                            if (error) {
+                                console.error("Upload error:", error);
+                                resolve(null);
+                            } else {
+                                const { data: publicData } = supabase.storage
+                                    .from('stores-photos')
+                                    .getPublicUrl(fileName);
+                                resolve(publicData.publicUrl);
+                            }
+                        }, "image/jpeg", 0.8);
+                    };
+                    img.onerror = () => resolve(null);
+                };
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(file);
+            });
+        };
+
+        const uploadPromises = files.map(file => processAndUpload(file));
+        const uploadedUrls = await Promise.all(uploadPromises);
+        const successfulUrls = uploadedUrls.filter((url): url is string => url !== null);
+
+        setPhotos(prev => [...prev, ...successfulUrls]);
         setIsUploading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -489,25 +525,26 @@ export default function StorePage() {
                                     variant="secondary"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isUploading || photos.length >= 5}
-                                    className="border-dashed h-24 w-full text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                    className="border-dashed h-24 w-full text-gray-500 hover:text-gray-700 hover:bg-gray-50 active:bg-gray-100 relative"
                                 >
                                     {isUploading ? (
                                         <><Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" /> 업로드 중...</>
                                     ) : (
-                                        <div className="flex flex-col items-center gap-1">
+                                        <div className="flex flex-col items-center gap-1 pointer-events-none">
                                             <Upload className="w-5 h-5 text-gray-400" />
                                             <span>사진 추가하기 ({photos.length}/5)</span>
                                         </div>
                                     )}
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileUpload}
+                                        accept="image/*"
+                                        multiple
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                        title="사진 선택"
+                                    />
                                 </Button>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    onChange={handleFileUpload}
-                                    accept="image/jpeg, image/png, image/webp"
-                                    multiple
-                                    className="hidden"
-                                />
                             </div>
                         </div>
                     </div>
