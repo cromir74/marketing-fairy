@@ -78,11 +78,15 @@ function PaymentSuccessContent() {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ authKey, customerKey }),
+                        credentials: "include", // 세션 정보 유지를 위해 포함
                     });
 
                     const billingData = await billingRes.json();
                     if (!billingRes.ok) {
-                        console.error("[Success Page] Billing Key API Call Failed:", billingData);
+                        console.error("[Success Page] Billing Key API Call Failed:", {
+                            status: billingRes.status,
+                            data: billingData
+                        });
                         throw new Error(billingData.error || "빌링키 발급에 실패했습니다.");
                     }
 
@@ -96,7 +100,10 @@ function PaymentSuccessContent() {
 
                     const confirmData = await confirmRes.json();
                     if (!confirmRes.ok) {
-                        console.error("[Success Page] Payment Confirm API Call Failed:", confirmData);
+                        console.error("[Success Page] Payment Confirm API Call Failed:", {
+                            status: confirmRes.status,
+                            data: confirmData
+                        });
                         throw new Error(confirmData.error || "결제 승인에 실패했습니다.");
                     }
                     console.log("[Success Page] Payment confirm success.");

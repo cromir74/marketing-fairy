@@ -116,9 +116,9 @@ export default function PricingPage() {
             </div>
 
             {/* Pricing Cards */}
-            <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 mb-24 w-full box-border">
+            <div className="max-w-5xl mx-auto space-y-6 md:space-y-0 md:grid md:grid-cols-2 md:gap-8 mb-24 w-full box-border px-4 sm:px-0">
                 {/* Basic Plan */}
-                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-xl shadow-gray-100/50 flex flex-col hover:border-primary-200 transition-all w-full box-border">
+                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-xl shadow-gray-100/50 flex flex-col hover:border-primary-200 transition-all w-full max-w-full sm:max-w-none mx-auto box-border overflow-hidden">
                     <div className="flex justify-between items-start mb-4 sm:mb-6">
                         <div>
                             <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">베이직</h3>
@@ -166,8 +166,8 @@ export default function PricingPage() {
                 </div>
 
                 {/* Pro Plan */}
-                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-2xl shadow-primary-100/50 flex flex-col md:scale-105 relative z-10 transition-all w-full box-border mt-4 md:mt-0">
-                    <div className="absolute -top-3 right-6 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5">
+                <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-2xl shadow-primary-100/50 flex flex-col md:scale-105 relative z-10 transition-all w-full max-w-full sm:max-w-none mx-auto box-border mt-4 md:mt-0 overflow-hidden">
+                    <div className="absolute top-4 right-5 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5 z-20">
                         <Sparkles className="w-3 h-3 text-yellow-400" fill="currentColor" />
                         가장 인기
                     </div>
@@ -251,7 +251,7 @@ function FeatureItem({ text, disabled = false, highlight = false, icon }: { text
                     disabled ? <X className="h-4 w-4 text-gray-400" /> : <Check className={`h-4 w-4 ${highlight ? "text-primary-600" : "text-emerald-500"}`} />
                 )}
             </div>
-            <span className={`text-[13px] sm:text-sm flex-1 break-keep leading-[1.3] ${highlight ? "font-bold text-gray-900" : "text-gray-600"} ${disabled ? "line-through" : ""}`}>
+            <span className={`text-[13px] sm:text-sm flex-1 break-keep [word-break:keep-all] [overflow-wrap:anywhere] leading-[1.3] ${highlight ? "font-bold text-gray-900" : "text-gray-600"} ${disabled ? "line-through" : ""}`}>
                 {text}
             </span>
         </div>

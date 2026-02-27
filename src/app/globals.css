@@ -57,6 +57,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -64,6 +65,8 @@ body {
   background-color: var(--color-surface-muted);
   color: #111827;
   /* Tailwind gray-900 */
+  overflow-x: hidden;
+  width: 100%;
 }
 
 /* Scroll Reveal Animation */

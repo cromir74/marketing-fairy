@@ -32,17 +32,21 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 message: "Existing billing key found",
-                isExisting: true
+                isExisting: true,
+                billingKey: existingSub.billing_key
             });
         }
 
-        console.log(`- authKey: ${authKey?.trim()?.substring(0, 10)}...`);
-        console.log(`- secretKey check: ${secretKey.startsWith("test_sk") ? "TEST MODE" : "LIVE MODE"}`);
+        console.log(`- authKey prefix: ${authKey?.trim()?.substring(0, 7)}...`);
+        console.log(`- secretKey check: ${secretKey.startsWith("live_sk") ? "LIVE MODE" : "TEST MODE"}`);
 
         const tossUrl = "https://api.tosspayments.com/v1/billing/authorizations/issue";
         const requestBody = { authKey: authKey.trim(), customerKey: normalizedCustomerKey };
 
-        console.log(`[Billing Key] Requesting Toss API: ${tossUrl}`);
+        console.log(`[Billing Key] Requesting Toss API: ${tossUrl} with body:`, {
+            authKey: authKey?.trim()?.substring(0, 10) + "...",
+            customerKey: normalizedCustomerKey
+        });
 
         const response = await fetch(tossUrl, {
             method: "POST",

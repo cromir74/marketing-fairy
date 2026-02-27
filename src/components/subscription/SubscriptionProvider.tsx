@@ -37,13 +37,15 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         setSubscription(sub);
 
         if (sub) {
-            // 사용량 조회 (현재 기간 기준)
+            // 사용량 조회 (현재 기간 기준) - 406 오류 방지를 위해 .single() 대신 limit(1) 사용
             const { data: use } = await supabase
                 .from("usage_limits")
                 .select("*")
                 .eq("user_id", user.id)
                 .eq("period_start", sub.current_period_start)
-                .single();
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
             setUsage(use);
 
@@ -55,7 +57,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
                     .select("instagram_count, threads_count")
                     .eq("user_id", user.id)
                     .eq("date", today)
-                    .single();
+                    .maybeSingle();
                 if (daily) {
                     setDailyPublishUsage({ instagram: daily.instagram_count || 0, threads: daily.threads_count || 0 });
                 }

@@ -474,7 +474,7 @@ export default function LandingPage() {
 
                 <div className="grid md:grid-cols-2 gap-8 reveal-on-scroll w-full box-border">
                     {/* Basic Plan */}
-                    <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-primary-200 transition-all w-full box-border">
+                    <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-primary-200 transition-all w-full max-w-full sm:max-w-none mx-auto box-border overflow-hidden">
                         <div className="flex justify-between items-start mb-4 sm:mb-6">
                             <div>
                                 <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-display">베이직</h3>
@@ -507,8 +507,8 @@ export default function LandingPage() {
                     </div>
 
                     {/* Pro Plan */}
-                    <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative md:-translate-y-4 w-full box-border">
-                        <div className="absolute -top-3 right-6 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5">
+                    <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative md:-translate-y-4 w-full max-w-full sm:max-w-none mx-auto box-border overflow-hidden">
+                        <div className="absolute top-4 right-5 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5 z-20">
                             <Zap className="w-3 h-3 text-yellow-400" fill="currentColor" />
                             가장 인기
                         </div>
@@ -672,7 +672,7 @@ function FeatureItem({ text, highlight = false, excluded = false }: { text: stri
             <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${highlight ? "bg-primary-100 text-primary-600" : excluded ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
                 {excluded ? <X className="w-3 sm:w-3.5 h-3 sm:h-3.5 font-bold" /> : <Check className="w-3 sm:w-3.5 h-3 sm:h-3.5 font-bold" />}
             </div>
-            <span className={`flex-1 break-keep leading-[1.3] text-[13px] sm:text-base ${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
+            <span className={`flex-1 break-keep [word-break:keep-all] [overflow-wrap:anywhere] leading-[1.3] text-[13px] sm:text-base ${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
         </li>
     );
 }
