@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { extractPlaceData, crawlNaverPlace } from "@/lib/place-crawler";
+import { crawlNaverPlace } from "@/lib/place-crawler";
 
 export async function POST(req: Request) {
     try {
