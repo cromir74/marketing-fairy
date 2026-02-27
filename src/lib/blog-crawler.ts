@@ -19,10 +19,12 @@ async function initCrawlBrowser() {
     }
 
     crawlBrowser = await puppeteer.launch({
-        headless: false, // 사용자 요청 및 네이버 탐지 회피용
+        headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
             '--disable-infobars',
             '--disable-blink-features=AutomationControlled',
             '--window-size=1280,1024'

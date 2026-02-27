@@ -30,14 +30,16 @@ export class NaverAutomation {
     async initialize() {
         this.addLog("브라우저 시작 중...");
         this.browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
                 '--window-size=1280,1024',
                 '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             ],
-            defaultViewport: null
+            defaultViewport: { width: 1280, height: 1024 }
         });
         const pages = await this.browser.pages();
         this.page = pages.length > 0 ? pages[0] : await this.browser.newPage();
