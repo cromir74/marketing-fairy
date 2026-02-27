@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "@supabase/supabase-js";
-import FairyCursor from "@/components/FairyCursor";
+
 
 export default function LandingPage() {
     const [user, setUser] = useState<User | null>(null);
@@ -103,7 +103,6 @@ export default function LandingPage() {
 
     return (
         <div className="min-h-screen bg-[#FAFAFA] text-gray-900 font-sans selection:bg-primary-100 selection:text-primary-900">
-            <FairyCursor />
 
             {/* ─── HEADER (FLOATING BENTO) ─── */}
             <header className="fixed top-6 left-0 right-0 z-50 px-4 flex justify-center">

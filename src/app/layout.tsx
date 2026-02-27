@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import FairyCursor from "@/components/FairyCursor";
+
 import KakaoChatButton from "@/components/KakaoChatButton";
 
 export const metadata: Metadata = {
