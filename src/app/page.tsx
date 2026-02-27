@@ -168,7 +168,7 @@ export default function LandingPage() {
             </header>
 
             {/* ─── HERO SECTION ─── */}
-            <section className="pt-48 pb-20 px-6 max-w-5xl mx-auto text-center reveal-on-scroll">
+            <section className="pt-32 sm:pt-48 pb-20 px-4 sm:px-6 max-w-5xl mx-auto text-center reveal-on-scroll">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-gray-200 text-gray-600 text-xs font-semibold tracking-wide mb-8 shadow-sm animate-float">
                     <Sparkles className="w-3.5 h-3.5 text-primary-500" />
                     가장 완벽한 AI 마케팅 자동화
@@ -211,7 +211,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── 3-STEP PROCESS ─── */}
-            <section className="py-24 px-6 bg-white border-b border-gray-100">
+            <section className="py-24 px-4 sm:px-6 bg-white border-b border-gray-100">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16 reveal-on-scroll">
                         <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">이렇게 쉬울 수 없습니다</h2>
@@ -250,7 +250,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── BENTO GRID FEATURES ─── */}
-            <section id="features" className="py-24 px-6 max-w-6xl mx-auto">
+            <section id="features" className="py-24 px-4 sm:px-6 max-w-6xl mx-auto">
                 <div className="mb-16 reveal-on-scroll">
                     <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">마케팅 자동화의 정수</h2>
                     <p className="text-xl text-gray-500 font-medium">가게 링크 하나면 AI가 전체 컨셉을 파악해 글을 써냅니다.</p>
@@ -322,7 +322,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── BEFORE / AFTER COMPARISON (BENTO STYLE) ─── */}
-            <section id="compare" className="py-24 px-6 bg-white border-y border-gray-100">
+            <section id="compare" className="py-24 px-4 sm:px-6 bg-white border-y border-gray-100">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16 reveal-on-scroll">
                         <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">퀄리티의 차이가 곧 매출의 차이</h2>
@@ -382,7 +382,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── AGENCY COMPARISON ─── */}
-            <section className="py-24 px-6 bg-[#FAFAFA]">
+            <section className="py-24 px-4 sm:px-6 bg-[#FAFAFA]">
                 <div className="max-w-5xl mx-auto">
                     <div className="text-center mb-16 reveal-on-scroll">
                         <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">대행사에 맡기면 얼마일까요?</h2>
@@ -466,7 +466,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── PRICING BENTO ─── */}
-            <section id="pricing" className="py-24 px-4 sm:px-6 w-full max-w-[100vw] xl:max-w-5xl mx-auto box-border overflow-x-hidden">
+            <section id="pricing" className="py-24 px-4 sm:px-6 w-full max-w-5xl mx-auto box-border transition-all">
                 <div className="text-center mb-16 reveal-on-scroll">
                     <h2 className="text-3xl sm:text-4xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">명확하고 투명한 요금제</h2>
                     <p className="text-gray-500 text-xl font-medium">대행사 비용 150만원 대신, 월 20만원대로 해결하세요.</p>
@@ -474,18 +474,26 @@ export default function LandingPage() {
 
                 <div className="grid md:grid-cols-2 gap-8 reveal-on-scroll w-full box-border">
                     {/* Basic Plan */}
-                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-gray-300 transition-colors w-full max-w-full box-border">
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2 font-display">베이직</h3>
-                        <p className="text-gray-500 font-medium mb-6">SNS 자동화의 시작</p>
-                        <div className="mb-8">
-                            <div className="text-gray-400 line-through text-lg font-bold mb-1">₩150,000</div>
-                            <div className="flex items-baseline gap-1 sm:gap-2">
-                                <span className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight shrink">₩120,000</span>
-                                <span className="text-gray-500 font-bold shrink-0">/월</span>
+                    <div className="bg-white rounded-[2rem] p-5 sm:p-10 border border-gray-200 shadow-sm flex flex-col hover:border-primary-200 transition-all w-full box-border">
+                        <div className="flex justify-between items-start mb-4 sm:mb-6">
+                            <div>
+                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-display">베이직</h3>
+                                <p className="text-gray-500 text-sm font-medium">SNS 자동화의 시작</p>
+                            </div>
+                            <div className="bg-gray-50 p-2 rounded-xl">
+                                <Zap className="h-5 w-5 text-gray-400" />
                             </div>
                         </div>
 
-                        <ul className="space-y-5 mb-10 flex-grow">
+                        <div className="mb-6 sm:mb-8">
+                            <div className="flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
+                                <span className="text-gray-400 line-through text-sm sm:text-lg font-bold">₩150,000</span>
+                                <span className="text-2xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight">₩120,000</span>
+                                <span className="text-gray-500 text-xs sm:text-sm font-bold">/월</span>
+                            </div>
+                        </div>
+
+                        <ul className="space-y-3.5 sm:space-y-5 mb-8 sm:mb-10 flex-grow">
                             <FeatureItem text="인스타그램 자동 발행 (월 30건)" />
                             <FeatureItem text="스레드 자동 발행 (월 30건)" />
                             <FeatureItem text="네이버 플레이스 기본 분석" />
@@ -493,37 +501,53 @@ export default function LandingPage() {
                             <FeatureItem text="네이버 블로그 자동 발행" excluded />
                         </ul>
 
-                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-xl border-2 border-gray-200 text-gray-800 font-bold hover:bg-gray-50 hover:border-gray-300 transition-all box-border">
+                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-bold hover:bg-gray-100 transition-all">
                             {user ? "대시보드로 이동" : "베이직 시작하기"}
                         </Link>
                     </div>
 
                     {/* Pro Plan */}
-                    <div className="bg-white rounded-[2.5rem] p-6 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative transform md:-translate-y-4 w-full max-w-full box-border">
-                        <div className="absolute -top-4 right-6 md:right-10 bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-black tracking-wider uppercase shadow-md flex items-center gap-2">
-                            <Zap className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" />
+                    <div className="bg-white rounded-[2rem] p-5 sm:p-10 border-2 border-primary-500 shadow-xl shadow-primary-900/10 flex flex-col relative md:-translate-y-4 w-full box-border">
+                        <div className="absolute -top-3 right-6 bg-gray-900 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase shadow-md flex items-center gap-1.5">
+                            <Zap className="w-3 h-3 text-yellow-400" fill="currentColor" />
                             가장 인기
                         </div>
 
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2 font-display">프로</h3>
-                        <div className="flex flex-col sm:flex-row sm:justify-between items-start mb-6 gap-3">
-                            <p className="text-primary-600 font-bold">완벽한 AI 마케팅 솔루션</p>
-                            {!loading && earlybird.tier1 > 0 && (
-                                <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-black animate-pulse border border-red-100 w-fit shrink-0">
-                                    얼리버드 잔여 {earlybird.tier1}명
-                                </span>
-                            )}
-                        </div>
-
-                        <div className="mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100 w-full box-border overflow-hidden">
-                            <div className="text-gray-400 line-through text-lg font-bold mb-1">₩290,000</div>
-                            <div className="flex items-baseline gap-1 sm:gap-2">
-                                <span className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight shrink">₩230,000</span>
-                                <span className="text-gray-500 font-bold shrink-0">/월</span>
+                        <div className="flex justify-between items-start mb-4 sm:mb-6">
+                            <div>
+                                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1 font-display">프로</h3>
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-primary-600 text-sm font-bold">완벽한 AI 마케팅 솔루션</p>
+                                    {!loading && earlybird.tier1 > 0 && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-lg text-[10px] sm:text-xs font-black animate-pulse border border-red-100">
+                                                얼리버드 이벤트 선착순 진행 중!
+                                            </span>
+                                            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md font-black">
+                                                남은 자리: {earlybird.tier1}명
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="bg-primary-50 p-2 rounded-xl">
+                                <Sparkles className="h-5 w-5 text-primary-600" />
                             </div>
                         </div>
 
-                        <ul className="space-y-5 mb-10 flex-grow font-medium text-gray-900">
+                        <div className="mb-6 sm:mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            <div className="flex items-baseline gap-2 whitespace-nowrap overflow-hidden">
+                                <span className="text-gray-400 line-through text-sm sm:text-lg font-bold">₩290,000</span>
+                                <span className="text-2xl sm:text-4xl md:text-5xl font-display font-black text-gray-900 tracking-tight">₩230,000</span>
+                                <span className="text-gray-500 text-xs sm:text-sm font-bold">/월</span>
+                            </div>
+                            <p className="text-[10px] sm:text-xs font-bold text-primary-600 mt-2 flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                선착순 1차 얼리버드 특별 할인가 (평생 할인)
+                            </p>
+                        </div>
+
+                        <ul className="space-y-3.5 sm:space-y-5 mb-8 sm:mb-10 flex-grow font-medium text-gray-900">
                             <FeatureItem text="베이직의 모든 기능 포함" highlight />
                             <FeatureItem text="네이버 블로그 자동 발행 (월 30건)" highlight />
                             <FeatureItem text="마케팅 캘린더 (시즌/요일 전략)" highlight />
@@ -531,7 +555,7 @@ export default function LandingPage() {
                             <FeatureItem text="네이버 플레이스 심화 분석" highlight />
                         </ul>
 
-                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-xl bg-primary-500 text-white font-bold hover:bg-primary-600 transition-all shadow-[0_4px_14px_0_rgba(16,185,129,0.39)] hover:shadow-[0_6px_20px_rgba(16,185,129,0.23)] box-border">
+                        <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-2xl bg-primary-500 text-white font-bold hover:bg-primary-600 transition-all shadow-lg shadow-primary-500/20">
                             {user ? "대시보드로 이동" : "프로 시작하기"}
                         </Link>
                     </div>
@@ -539,9 +563,9 @@ export default function LandingPage() {
             </section>
 
             {/* ─── FAQ ACCORDION ─── */}
-            <section id="faq" className="py-24 px-6 max-w-3xl mx-auto">
-                <div className="text-center mb-16 reveal-on-scroll">
-                    <h2 className="text-3xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">자주 묻는 질문</h2>
+            <section id="faq" className="py-24 px-4 sm:px-6 max-w-3xl mx-auto">
+                <div className="text-center mb-10 sm:mb-16 reveal-on-scroll px-2">
+                    <h2 className="text-2xl sm:text-3xl font-display font-black text-gray-900 mb-4 tracking-tight break-keep">자주 묻는 질문</h2>
                 </div>
                 <div className="space-y-4 reveal-on-scroll">
                     <FAQItem q="AI가 쓴 글이 어색하지 않나요?" a="마케팅요정은 특정 업종 메뉴 데이터 및 수만 건의 인기 게시글 패턴을 학습한 AI를 사용합니다. 일반적인 AI 봇의 딱딱한 말투가 아닌, 사람 냄새 나는 다양한 페르소나 스타일로 자연스럽게 작성됩니다." openByDefault />
@@ -553,8 +577,8 @@ export default function LandingPage() {
             </section>
 
             {/* ─── FINAL CTA ─── */}
-            <section className="py-24 px-6 border-t border-gray-200/60 bg-white text-center">
-                <div className="max-w-4xl mx-auto bg-gray-900 rounded-[3rem] p-12 md:p-20 relative overflow-hidden shadow-2xl reveal-on-scroll">
+            <section className="py-24 px-4 sm:px-6 border-t border-gray-200/60 bg-white text-center">
+                <div className="max-w-4xl mx-auto bg-gray-900 rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-20 relative overflow-hidden shadow-2xl reveal-on-scroll">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-black text-white mb-6 leading-tight relative z-10 break-keep">마케팅 자동화의 시작,<br />버튼 하나면 충분합니다.</h2>
                     <p className="text-xl text-gray-400 mb-10 font-medium relative z-10 max-w-xl mx-auto">1분이면 설정을 완료하고 바로 컨텐츠를 올릴 수 있습니다.</p>
@@ -566,7 +590,7 @@ export default function LandingPage() {
             </section>
 
             {/* ─── FOOTER ─── */}
-            <footer className="bg-[#FAFAFA] border-t border-gray-200 py-16 px-6">
+            <footer className="bg-[#FAFAFA] border-t border-gray-200 py-16 px-4 sm:px-6">
                 <div className="max-w-7xl mx-auto grid gap-12 md:grid-cols-4">
                     <div className="md:col-span-2">
                         <div className="flex items-center gap-2 mb-4">
@@ -644,11 +668,11 @@ function MarqueeItem({ icon, text }: { icon: React.ReactNode, text: string }) {
 
 function FeatureItem({ text, highlight = false, excluded = false }: { text: string, highlight?: boolean; excluded?: boolean }) {
     return (
-        <li className={`flex items-start gap-3 ${excluded ? "opacity-50" : ""}`}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${highlight ? "bg-primary-100 text-primary-600" : excluded ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
-                {excluded ? <X className="w-3.5 h-3.5 font-bold" /> : <Check className="w-3.5 h-3.5 font-bold" />}
+        <li className={`flex items-start gap-2 sm:gap-3 ${excluded ? "opacity-50" : ""}`}>
+            <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${highlight ? "bg-primary-100 text-primary-600" : excluded ? "bg-gray-100 text-gray-400" : "bg-gray-100 text-gray-500"}`}>
+                {excluded ? <X className="w-3 sm:w-3.5 h-3 sm:h-3.5 font-bold" /> : <Check className="w-3 sm:w-3.5 h-3 sm:h-3.5 font-bold" />}
             </div>
-            <span className={`flex-1 break-keep leading-tight ${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
+            <span className={`flex-1 break-keep leading-[1.3] text-[13px] sm:text-base ${highlight ? "text-gray-900 font-bold" : "text-gray-600 font-medium"} ${excluded ? "line-through text-gray-400" : ""}`}>{text}</span>
         </li>
     );
 }

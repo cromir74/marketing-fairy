@@ -61,19 +61,19 @@ export function TrialManager({ children }: { children: React.ReactNode }) {
         <div className="relative w-full h-full flex flex-col">
             {/* Trial Banner */}
             {isTrial && !isExpired && (
-                <div className="sticky top-0 z-40 w-full bg-gradient-to-r from-purple-600 to-indigo-600 pr-4 pl-14 lg:px-4 py-2.5 shadow-md flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-white text-sm font-medium">
-                        <span className="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-full text-xs font-bold">
-                            <Sparkles className="h-3.5 w-3.5 text-yellow-300" />
-                            무료 체험 중 | D-{daysLeft}
+                <div className="sticky top-0 z-40 w-full bg-gradient-to-r from-purple-600 to-indigo-600 pr-4 pl-14 lg:px-4 py-2.5 shadow-md flex items-center justify-between gap-2 overflow-hidden">
+                    <div className="flex items-center gap-2 text-white text-sm font-medium shrink overflow-hidden">
+                        <span className="flex items-center gap-1.5 bg-white/20 px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0">
+                            <Sparkles className="h-3 w-3 text-yellow-300" />
+                            <span className="hidden xs:inline">무료 체험 중 | </span>D-{daysLeft}
                         </span>
-                        <span className="hidden sm:inline opacity-90 text-[13px]">
+                        <span className="hidden sm:inline opacity-90 text-[13px] whitespace-nowrap">
                             오늘 발행: 인스타 {Math.min(dailyUsage.instagram, 1)}/1 · 스레드 {Math.min(dailyUsage.threads, 1)}/1
                         </span>
                     </div>
-                    <Link href="/pricing">
-                        <Button variant="secondary" size="sm" className="h-7 text-xs font-bold bg-white text-indigo-700 hover:bg-gray-50 border-none transition-all">
-                            플랜 선택하기 &rarr;
+                    <Link href="/pricing" className="shrink-0">
+                        <Button variant="secondary" size="sm" className="h-7 px-2.5 text-[11px] font-bold bg-white text-indigo-700 hover:bg-gray-50 border-none transition-all whitespace-nowrap">
+                            플랜 선택<span className="hidden xs:inline">하기</span> &rarr;
                         </Button>
                     </Link>
                 </div>
