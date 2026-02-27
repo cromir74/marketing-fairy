@@ -21,8 +21,11 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
             const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
             targetUrl = res.url;
             console.log(`[Crawler] Resolved to: ${targetUrl}`);
-        } catch (e) {
-            console.error("[Crawler] URL Resolution failed", e);
+            if (!targetUrl.includes("place")) {
+                console.warn("[Crawler] Resolved URL might be incorrect (no 'place' in URL)");
+            }
+        } catch (e: any) {
+            console.error("[Crawler] URL Resolution failed", e.message);
         }
     }
 
@@ -48,6 +51,7 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
             headless: true,
             args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
         });
+        if (browser) console.log("[Crawler] Browser launched successfully");
         const page = await browser.newPage();
         await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1");
 
@@ -80,7 +84,10 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
                         // 1. 기본 정보 추출
                         const business = data.business || data.root?.place || data.place;
                         if (business) {
-                            if (!name && business.name) name = business.name;
+                            if (!name && business.name) {
+                                name = business.name;
+                                console.log(`[Crawler] Found name from API: ${name}`);
+                            }
                             if (!category && business.category) category = business.category;
                             if (!description && business.description) description = business.description;
                             if (!phone && (business.phone || business.tel)) phone = business.phone || business.tel;
@@ -89,28 +96,27 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
                             if (!rating && business.visitorReviewScore) rating = parseFloat(business.visitorReviewScore);
                         }
 
-                        // 2. 메뉴 정보
                         const analysisMenus = data.visitorReviewStats?.analysis?.menus || data.menuInfo?.menus;
                         if (analysisMenus && Array.isArray(analysisMenus) && menus.length === 0) {
                             menus = analysisMenus.map((m: any) => m.label || m.name || m.menu).filter(Boolean).slice(0, 5);
+                            console.log(`[Crawler] Captured menus from API: ${menus.length} items`);
                         }
 
-                        // 3. 리뷰 키워드
                         const themes = data.visitorReviewStats?.analysis?.themes || data.visitorReviewStats?.tells;
                         if (themes && Array.isArray(themes) && reviewKeywords.length === 0) {
                             reviewKeywords = themes.map((t: any) => t.label || t.item?.name || t.text).filter(Boolean).slice(0, 8);
+                            console.log(`[Crawler] Captured keywords from API: ${reviewKeywords.length} items`);
                         }
                     }
                 } catch (e) { }
             }
         });
 
-        // 타임아웃 넉넉히 설정
+        console.log(`[Crawler] Navigating to: ${mobileUrl}`);
         await page.goto(mobileUrl, { waitUntil: "networkidle2", timeout: 30000 }).catch(err => {
-            console.log("[Crawler] Navigation timeout or error, continuing with fallback:", err.message);
+            console.log("[Crawler] Navigation timeout or error:", err.message);
         });
 
-        // 추가 렌더링 대기
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // DOM 기반 백업 추출 (셀렉터 업데이트)
@@ -144,6 +150,8 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
             return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
         });
 
+        console.log("[Crawler] DOM Data extracted:", !!domData.name);
+
         if (!name || name === "네이버 플레이스") name = domData.name || "";
         if (!category) category = domData.category || "";
         if (!description) description = domData.description || "";
@@ -154,12 +162,15 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
         // 최종 매장명 백업 (Page Title)
         if (!name || name === "네이버 플레이스" || name === "매장명 확인 불가") {
             const pageTitle = await page.title();
+            console.log(`[Crawler] Extraction weak. Falling back to page title: ${pageTitle}`);
             if (pageTitle && !pageTitle.includes("네이버 지도") && !pageTitle.includes("네이버 플레이스")) {
                 name = pageTitle.split(":")[0].trim();
             } else if (pageTitle) {
                 name = pageTitle.replace(" - 네이버 플레이스", "").trim();
             }
         }
+
+        console.log(`[Crawler] Final result: ${name}, ${category}`);
 
         return {
             name: name || "매장명 확인 불가",
@@ -173,8 +184,36 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
             businessHours: businessHours || "",
             rating: rating || 0
         };
-    } catch (error) {
-        console.error("Place extraction error:", error);
+    } catch (error: any) {
+        console.error("[Crawler] Fatal error during extraction:", error.message);
+
+        // 브라우저 실행 실패 시 최소한의 정보를 위한 fetch fallback
+        try {
+            console.log("[Crawler] Attempting lightweight fetch fallback...");
+            const res = await fetch(targetUrl);
+            const html = await res.text();
+            const titleMatch = html.match(/<title>(.*?)<\/title>/);
+            if (titleMatch && titleMatch[1]) {
+                const name = titleMatch[1].replace(" - 네이버 플레이스", "").split(":")[0].trim();
+                if (name && name !== "네이버 플레이스" && name !== "네이버 지도") {
+                    console.log(`[Crawler] Fetch fallback successful: ${name}`);
+                    return {
+                        name,
+                        category: "",
+                        description: "",
+                        menus: ["메뉴 정보 없음"],
+                        reviewKeywords: ["검색된 키워드 없음"],
+                        photos: [],
+                        phone: "",
+                        address: "",
+                        businessHours: "",
+                        rating: 0
+                    };
+                }
+            }
+        } catch (e) {
+            console.error("[Crawler] Fetch fallback also failed");
+        }
         return null;
     } finally {
         if (browser) await browser.close();
