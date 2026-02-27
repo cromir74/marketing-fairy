@@ -64,20 +64,13 @@ export async function POST(req: Request) {
         automation = new NaverAutomation();
         await automation.initialize();
 
-        // 2-1. 쿠키로 로그인 우선 시도
-        let loggedIn = false;
-        try {
-            loggedIn = await automation.loginWithCookies();
-        } catch (e) {
-            console.log("[PublishAPI] Cookie login failed, falling back to ID/PW");
-        }
+        // 2-1. 환경변수 쿠키로 로그인 시도
+        const loggedIn = await automation.loginWithEnvCookies();
 
-        // 2-2. 쿠키 로그인 실패 시 ID/PW로 로그인
         if (!loggedIn) {
-            if (!id || !pw) {
-                return NextResponse.json({ error: "네이버 세션이 만료되었습니다. 다시 로그인 세팅이 필요하거나 ID/PW를 제공해주세요." }, { status: 401 });
-            }
-            await automation.login(id, pw);
+            return NextResponse.json({
+                error: "네이버 쿠키가 설정되지 않았거나 만료되었습니다. .env의 NID_AUT, NID_SES를 갱신해주세요."
+            }, { status: 401 });
         }
 
         await automation.enterEditor();

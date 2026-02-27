@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { NaverAutomation } from '@/lib/naver-automation';
 import { createClient } from '@/lib/supabase/server';
 
+/**
+ * 네이버 쿠키 상태 확인 및 수동 가이드 제공
+ */
 export async function POST(req: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -10,40 +13,36 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
     }
 
-    // 관리자 또는 특정 권한 체크가 필요할 수 있음
-    // if (user.email !== '원하는관리자이메일') ...
-
     let automation: NaverAutomation | null = null;
     try {
-        const body = await req.json();
-        const { id, pw } = body;
-
-        if (!id || !pw) {
-            return NextResponse.json({ error: "아이디와 비밀번호가 필요합니다." }, { status: 400 });
-        }
-
         automation = new NaverAutomation();
-        await automation.initialize(true); // 우선 headless로 시도
+        await automation.initialize(true);
 
-        await automation.login(id, pw);
+        const success = await automation.loginWithEnvCookies();
 
-        return NextResponse.json({
-            success: true,
-            message: "네이버 로그인이 성공적으로 완료되었으며 쿠키가 저장되었습니다."
-        });
+        if (success) {
+            try {
+                await automation.enterEditor();
+                return NextResponse.json({
+                    success: true,
+                    message: "네이버 세션이 유효합니다. 자동 포스팅이 가능합니다."
+                });
+            } catch (editorError: any) {
+                return NextResponse.json({
+                    success: false,
+                    error: editorError.message || "에디터 진입에 실패했습니다. 쿠키를 재확인해주세요."
+                }, { status: 403 });
+            }
+        } else {
+            return NextResponse.json({
+                success: false,
+                error: "쿠키가 유효하지 않거나 만료되었습니다. .env의 NID_AUT, NID_SES를 갱신해주세요."
+            }, { status: 401 });
+        }
 
     } catch (error: any) {
-        console.error("Naver Login Setup Error:", error);
-
-        // 캡차 발생 시 public 폴더에 이미지가 저장됨을 NaverAutomation에서 처리함
-        if (error.message.includes("캡차")) {
-            return NextResponse.json({
-                error: error.message,
-                captchaUrl: "/naver_captcha.png"
-            }, { status: 403 });
-        }
-
-        return NextResponse.json({ error: error.message || "로그인 설정 중 오류가 발생했습니다." }, { status: 500 });
+        console.error("Naver Cookie Check Error:", error);
+        return NextResponse.json({ error: error.message || "상태 확인 중 오류가 발생했습니다." }, { status: 500 });
     } finally {
         if (automation) {
             await automation.close();
@@ -52,10 +51,17 @@ export async function POST(req: Request) {
 }
 
 /**
- * 현재 쿠키 상태 확인
+ * 현재 설정된 환경변수 존재 여부 확인
  */
 export async function GET() {
-    const automation = new NaverAutomation();
-    const hasCookies = await automation.hasSavedCookies();
-    return NextResponse.json({ hasSavedCookies: hasCookies });
+    const hasNidAut = !!process.env.NAVER_NID_AUT;
+    const hasNidSes = !!process.env.NAVER_NID_SES;
+
+    return NextResponse.json({
+        hasConfigured: hasNidAut && hasNidSes,
+        details: {
+            NAVER_NID_AUT: hasNidAut ? "configured" : "missing",
+            NAVER_NID_SES: hasNidSes ? "configured" : "missing"
+        }
+    });
 }

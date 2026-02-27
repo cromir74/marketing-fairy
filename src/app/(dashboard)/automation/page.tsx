@@ -30,6 +30,7 @@ import {
     CloudRain,
     Sun,
     Crown,
+    Cookie
 } from "lucide-react";
 
 import { useSubscription } from "@/components/subscription/SubscriptionProvider";
@@ -193,7 +194,7 @@ function AutomationPageContent() {
         try {
             const res = await fetch("/api/naver/login-setup");
             const data = await res.json();
-            setHasSavedCookies(data.hasSavedCookies);
+            setHasSavedCookies(data.hasConfigured);
         } catch (e) {
             console.error("Failed to check cookie status:", e);
         }
@@ -204,30 +205,20 @@ function AutomationPageContent() {
     }, []);
 
     const handleSyncNaver = async () => {
-        if (!naverId || !naverPw) {
-            alert("네이버 아이디와 비밀번호를 입력해주세요.");
-            return;
-        }
-
         setIsSyncing(true);
         setCaptchaUrl(null);
         try {
             const res = await fetch("/api/naver/login-setup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: naverId, pw: naverPw }),
             });
             const data = await res.json();
             if (res.ok) {
                 setHasSavedCookies(true);
-                alert("네이버 세션 동기화가 완료되었습니다! 이제 로그인이 더 안정적입니다.");
+                alert("네이버 세션 쿠키가 유효합니다! 무인 포스팅이 가능합니다.");
             } else {
-                if (data.captchaUrl) {
-                    setCaptchaUrl(data.captchaUrl + "?t=" + Date.now());
-                    alert("보안 문자(캡차)가 발생했습니다. 아래 이미지를 확인하고 다시 시도하거나, 잠시 후 시도해주세요.");
-                } else {
-                    alert(data.error || "동기화 중 오류가 발생했습니다.");
-                }
+                setHasSavedCookies(false);
+                alert(data.error || "쿠키가 만료되었거나 설정되지 않았습니다.");
             }
         } catch (err) {
             alert("서버와 통신 중 오류가 발생했습니다.");
@@ -750,37 +741,26 @@ function AutomationPageContent() {
                                 </span>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                            <div className="md:col-span-5">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">아이디</label>
-                                <Input
-                                    value={naverId}
-                                    onChange={(e) => setNaverId(e.target.value)}
-                                    placeholder="네이버 아이디"
-                                    className="bg-gray-50/50"
-                                />
+                        <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div className="flex-1">
+                                <h3 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-2">
+                                    <Cookie className="h-4 w-4 text-blue-600" />
+                                    환경변수 쿠키 기반 로그인 (Manual Session)
+                                </h3>
+                                <p className="text-xs text-blue-700 leading-relaxed">
+                                    네이버의 강력한 보안 정책으로 인해 수동 쿠키 설정 방식을 사용합니다.
+                                    서버의 <b>.env</b> 파일에 <b>NAVER_NID_AUT</b>, <b>NAVER_NID_SES</b>를 설정해주세요.
+                                </p>
                             </div>
-                            <div className="md:col-span-4">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">비밀번호</label>
-                                <Input
-                                    type="password"
-                                    value={naverPw}
-                                    onChange={(e) => setNaverPw(e.target.value)}
-                                    placeholder="비밀번호"
-                                    className="bg-gray-50/50"
-                                />
-                            </div>
-                            <div className="md:col-span-3">
-                                <Button
-                                    variant="secondary"
-                                    className={`w-full h-10 border-blue-100 text-blue-600 hover:bg-blue-50 hover:text-blue-700 ${isSyncing ? "animate-pulse" : ""}`}
-                                    onClick={handleSyncNaver}
-                                    disabled={isSyncing}
-                                >
-                                    {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                                    세션 동기화
-                                </Button>
-                            </div>
+                            <Button
+                                variant="secondary"
+                                className={`h-11 px-6 border-blue-200 text-blue-700 hover:bg-white transition-all shadow-sm ${isSyncing ? "animate-pulse" : ""}`}
+                                onClick={handleSyncNaver}
+                                disabled={isSyncing}
+                            >
+                                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                세션 상태 확인
+                            </Button>
                         </div>
 
                         {captchaUrl && (
@@ -791,15 +771,27 @@ function AutomationPageContent() {
                                 <div className="bg-white p-2 rounded-lg border border-amber-200 inline-block mb-2">
                                     <img src={captchaUrl} alt="Captcha" className="h-12" />
                                 </div>
-                                <p className="text-[10px] text-amber-600">
-                                    현재 환경에서 캡차 입력을 지원하지 않습니다. 잠시 후 다시 시도하거나 세션 쿠키를 수동으로 설정해야 합니다.
-                                </p>
                             </div>
                         )}
 
-                        <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
-                            * <b>세션 동기화</b>를 한 번 완료하면 캡차 발생 확률이 낮아지고 블로그 발행이 더 안정적으로 작동합니다.
-                        </p>
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <p className="text-[11px] font-bold text-gray-700 mb-1">💡 쿠키 가져오는 방법</p>
+                                <ol className="text-[10px] text-gray-500 space-y-1 list-decimal ml-4">
+                                    <li>PC 크롬에서 네이버 로그인</li>
+                                    <li>F12 → Application → Cookies → naver.com</li>
+                                    <li>NID_AUT, NID_SES 값 복사</li>
+                                </ol>
+                            </div>
+                            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <p className="text-[11px] font-bold text-gray-700 mb-1">📟 서버 설정 방법</p>
+                                <p className="text-[10px] text-gray-500 leading-relaxed">
+                                    서버 SSH 접속 후 .env 파일 수정:<br />
+                                    <code className="bg-gray-200 px-1 rounded text-red-600">NAVER_NID_AUT=값</code><br />
+                                    <code className="bg-gray-200 px-1 rounded text-red-600">NAVER_NID_SES=값</code>
+                                </p>
+                            </div>
+                        </div>
                     </section>
 
                     {/* 2. 콘텐츠 주제 및 사진 */}

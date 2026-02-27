@@ -68,46 +68,41 @@ export class NaverAutomation {
     }
 
     /**
-     * 저장된 쿠키로 로그인 시도
+     * 환경변수(.env)에 저장된 NAVER_NID_AUT, NAVER_NID_SES 쿠키로 로그인 설정
      */
-    async loginWithCookies(): Promise<boolean> {
+    async loginWithEnvCookies(): Promise<boolean> {
         if (!this.page) throw new Error("Browser not initialized");
 
-        if (!await this.hasSavedCookies()) {
-            this.addLog("저장된 쿠키 파일이 없습니다.", "warning");
+        const nidAut = process.env.NAVER_NID_AUT;
+        const nidSes = process.env.NAVER_NID_SES;
+
+        if (!nidAut || !nidSes) {
+            this.addLog("환경변수(NAVER_NID_AUT, NAVER_NID_SES)가 설정되지 않았습니다.", "error");
             return false;
         }
 
         try {
-            this.addLog("저장된 쿠키 로드 중...");
-            const cookies = await fs.readJSON(COOKIE_FILE);
+            this.addLog("환경변수 쿠키 적용 중...");
+            const cookies = [
+                { name: 'NID_AUT', value: nidAut, domain: '.naver.com', path: '/' },
+                { name: 'NID_SES', value: nidSes, domain: '.naver.com', path: '/' }
+            ];
             await this.page.setCookie(...cookies);
 
-            await this.page.goto('https://www.naver.com', { waitUntil: 'networkidle2' });
+            // 로그인 여부 확인을 위해 블로그 메인으로 이동
+            await this.page.goto('https://section.blog.naver.com/', { waitUntil: 'networkidle2' });
 
-            // 로그인 상태 확인 (메일 알림 아이콘이나 닉네임 영역 확인)
+            // 로그인 상태 확인 (내 블로그 링크 등이 있는지 확인)
             const isLoggedIn = await this.page.evaluate(() => {
-                const myView = document.querySelector('.MyView-module__my_info___fBv7A') ||
-                    document.querySelector('#GNBMY_ID, .nav_my_area');
-                return !!myView;
+                return !!document.querySelector('.user_info') || !!document.querySelector('.btn_logout') || !!document.querySelector('.nav_my');
             });
 
             if (isLoggedIn) {
-                // 네이버 ID 추출 (URL이나 페이지 소스에서)
-                this.naverId = await this.page.evaluate(() => {
-                    const link = document.querySelector('a[href*="blog.naver.com"]') as HTMLAnchorElement;
-                    if (link && link.href) {
-                        const match = link.href.match(/blog\.naver\.com\/([^/?]+)/);
-                        return match ? match[1] : "";
-                    }
-                    return "";
-                });
-
-                this.addLog(`쿠키로 로그인 성공 (ID: ${this.naverId})`, "success");
+                this.addLog("환경변수 쿠키로 로그인 성공", "success");
                 return true;
             }
         } catch (e: any) {
-            this.addLog(`쿠키 로그인 중 오류: ${e.message}`, "error");
+            this.addLog(`쿠키 설정 중 오류: ${e.message}`, "error");
         }
 
         this.addLog("쿠키 로그인 실패 또는 만료됨", "warning");
@@ -115,89 +110,14 @@ export class NaverAutomation {
     }
 
     /**
-     * 아이디/비밀번호로 로그인 시도 후 성공하면 쿠키 저장
+     * 기존 ID/PW 로그인 메서드 제거 (사용자 요청)
      */
     async login(id: string, pw: string) {
-        if (!this.page) throw new Error("Browser not initialized");
-        this.naverId = id;
-        this.addLog("네이버 로그인 시도 중 (Stealth Paste 방식)...");
-
-        try {
-            await this.page.goto('https://nid.naver.com/nidlogin.login', { waitUntil: 'networkidle2' });
-            await new Promise(r => setTimeout(r, 1000));
-
-            // ID 입력 (insertText 방식 - 봇 감지 우회)
-            this.addLog("아이디 입력 중...");
-            await this.page.evaluate((val) => {
-                const el = document.querySelector('#id') as HTMLInputElement;
-                if (!el) return;
-                el.value = '';
-                el.focus();
-                document.execCommand('insertText', false, val);
-            }, id);
-            await new Promise(r => setTimeout(r, 500));
-
-            // PW 입력 (insertText 방식)
-            await this.page.evaluate((val) => {
-                const el = document.querySelector('#pw') as HTMLInputElement;
-                if (!el) return;
-                el.value = '';
-                el.focus();
-                document.execCommand('insertText', false, val);
-            }, pw);
-            await new Promise(r => setTimeout(r, 500));
-
-            // 로그인 버튼 클릭
-            await this.page.click('.btn_login');
-            this.addLog("로그인 버튼 클릭 완료, 3초 대기...");
-            await new Promise(r => setTimeout(r, 3000));
-
-            // 내비게이션 대기 또는 에러 체크
-            const currentUrl = this.page.url();
-            if (currentUrl.includes('nidlogin.login')) {
-                // 캡차 확인
-                const isCaptcha = await this.page.evaluate(() => {
-                    return !!document.querySelector('#captcha') || !!document.querySelector('.captcha_wrap');
-                });
-
-                if (isCaptcha) {
-                    const screenshotPath = path.join(process.cwd(), 'public', 'naver_captcha.png');
-                    await fs.ensureDir(path.dirname(screenshotPath));
-                    await this.page.screenshot({ path: screenshotPath });
-                    throw new Error("보안문자(캡차)가 발생했습니다. 화면의 보안 문자를 확인해 주세요.");
-                }
-
-                throw new Error("로그인 실패: 계정 정보를 확인하거나 캡차 입력을 확인하세요.");
-            }
-
-            this.addLog("로그인 성공, 쿠키 저장 중...");
-            const cookies = await this.page.cookies();
-            await fs.writeJSON(COOKIE_FILE, cookies);
-            this.addLog("쿠키 저장 완료", "success");
-
-        } catch (e: any) {
-            this.addLog(`로그인 에러: ${e.message}`, "error");
-            throw e;
-        }
+        throw new Error("ID/PW 로그인은 더 이상 지원하지 않습니다. .env의 NID_AUT, NID_SES를 갱신해주세요.");
     }
 
     async enterEditor() {
         if (!this.page) throw new Error("Browser not initialized");
-
-        // 만약 naverId가 없다면 쿠키에서 유추하거나 로그인 과정에서 저장된 것 사용
-        if (!this.naverId) {
-            await this.page.goto('https://www.naver.com', { waitUntil: 'networkidle2' });
-            this.naverId = await this.page.evaluate(() => {
-                const link = document.querySelector('a[href*="blog.naver.com"]') as HTMLAnchorElement;
-                if (link && link.href) {
-                    const match = link.href.match(/blog\.naver\.com\/([^/?]+)/);
-                    return match ? match[1] : "";
-                }
-                return "";
-            });
-        }
-
-        if (!this.naverId) throw new Error("Naver ID를 식별할 수 없습니다. 로그인이 필요합니다.");
 
         this.addLog("블로그 에디터 진입 중...");
 
@@ -205,10 +125,29 @@ export class NaverAutomation {
             const editorUrl = `https://blog.naver.com/GoBlogWrite.naver`;
             await this.page.goto(editorUrl, {
                 waitUntil: 'networkidle2',
-                timeout: 60000
+                timeout: 30000
             });
+
+            // 로그인 페이지로 리다이렉트 되었는지 확인
+            const currentUrl = this.page.url();
+            if (currentUrl.includes('nidlogin.login')) {
+                throw new Error("쿠키가 만료되었습니다. .env의 NID_AUT, NID_SES를 갱신해주세요.");
+            }
+
+            // 에디터 로드 확인
+            const isEditorLoaded = await this.page.evaluate(() => {
+                return !!document.querySelector('#mainFrame') || !!document.querySelector('.se-main-container');
+            });
+
+            if (!isEditorLoaded) {
+                // 한 번 더 확인 (지연 발생 가능)
+                await new Promise(r => setTimeout(r, 3000));
+            }
+
         } catch (e: any) {
-            this.addLog(`에디터 페이지 로드 지연/실패: ${e.message}`, "warning");
+            if (e.message.includes("쿠키가 만료")) throw e;
+            this.addLog(`에디터 진입 실패: ${e.message}`, "error");
+            throw new Error(`에디터 진입 중 오류가 발생했습니다: ${e.message}`);
         }
 
         await new Promise(r => setTimeout(r, 2000));
