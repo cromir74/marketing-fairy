@@ -37,7 +37,7 @@ export class NaverAutomation {
     async initialize(headless: boolean = true) {
         this.addLog("브라우저 시작 중 (Stealth 적용)...");
         this.browser = await (puppeteer as any).launch({
-            headless: headless,
+            headless: headless ? 'new' : false,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -84,17 +84,19 @@ export class NaverAutomation {
         try {
             this.addLog("환경변수 쿠키 적용 중...");
             const cookies = [
-                { name: 'NID_AUT', value: nidAut, domain: '.naver.com', path: '/' },
-                { name: 'NID_SES', value: nidSes, domain: '.naver.com', path: '/' }
+                { name: 'NID_AUT', value: nidAut, domain: '.naver.com', path: '/', httpOnly: true, secure: true },
+                { name: 'NID_SES', value: nidSes, domain: '.naver.com', path: '/', httpOnly: true, secure: true }
             ];
             await this.page.setCookie(...cookies);
 
-            // 로그인 여부 확인을 위해 블로그 메인으로 이동
-            await this.page.goto('https://section.blog.naver.com/', { waitUntil: 'networkidle2' });
+            // 로그인 여부 확인을 위해 네이버 메인으로 이동
+            await this.page.goto('https://www.naver.com', { waitUntil: 'networkidle2' });
 
-            // 로그인 상태 확인 (내 블로그 링크 등이 있는지 확인)
+            // 로그인 상태 확인 (메일 알림 아이콘이나 닉네임 영역 확인)
             const isLoggedIn = await this.page.evaluate(() => {
-                return !!document.querySelector('.user_info') || !!document.querySelector('.btn_logout') || !!document.querySelector('.nav_my');
+                const myView = document.querySelector('.MyView-module__my_info___fBv7A') ||
+                    document.querySelector('#GNBMY_ID, .nav_my_area, .btn_logout');
+                return !!myView;
             });
 
             if (isLoggedIn) {
