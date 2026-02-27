@@ -268,10 +268,12 @@ export default function StorePage() {
                     location: formattedLocation,
                     phone: data.phone || prev.phone,
                     business_hours: cleanHours,
-                    main_products: data.menus && data.menus.length > 0 && data.menus[0] !== "메뉴 정보 없음" ? data.menus.join(", ") : prev.main_products,
-                    atmosphere: data.reviewKeywords && data.reviewKeywords.length > 0 && data.reviewKeywords[0] !== "검색된 키워드 없음"
-                        ? (prev.atmosphere ? prev.atmosphere + "\n\n참고 키워드: " + data.reviewKeywords.join(", ") : data.reviewKeywords.join(", "))
-                        : prev.atmosphere
+                    main_products: (data.menus && data.menus.length > 0 && data.menus[0] !== "메뉴 정보 없음")
+                        ? data.menus.slice(0, 10).join(", ")
+                        : (data.description ? data.description.substring(0, 100) : prev.main_products),
+                    atmosphere: (data.reviewKeywords && data.reviewKeywords.length > 0 && data.reviewKeywords[0] !== "검색된 키워드 없음")
+                        ? data.reviewKeywords.join(", ")
+                        : (data.description || prev.atmosphere)
                 }));
 
                 setNaverPlaceUrl(naverUrl);

@@ -20,6 +20,10 @@ export interface PlaceInfo {
     reviewScore: number;
     x: string;
     y: string;
+    // UI 호환성을 위한 필드
+    reviewKeywords: string[];
+    menus: string[];
+    photos: string[];
 }
 
 export interface CrawlResult {
@@ -180,6 +184,9 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
               price
             }
             tags
+            keywords {
+              name
+            }
             visitorReviewsTotal
             visitorReviewsScore
           }
@@ -225,9 +232,13 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
         if (p.description || p.desc) info.description = p.description || p.desc;
         if (p.phone || p.virtualPhone) info.phone = p.phone || p.virtualPhone;
         if (p.businessHours) info.businessHours = p.businessHours;
-        if (p.tags) info.tags = p.tags;
         if (p.visitorReviewsTotal !== undefined) info.reviewCount = p.visitorReviewsTotal;
         if (p.visitorReviewsScore !== undefined) info.reviewScore = p.visitorReviewsScore;
+
+        const baseTags = Array.isArray(p.tags) ? p.tags : [];
+        const kds = Array.isArray(p.keywords) ? p.keywords : [];
+        const keywordTags = kds.map((k: any) => k.name).filter(Boolean);
+        info.tags = Array.from(new Set([...baseTags, ...keywordTags]));
 
         if (p.menus && Array.isArray(p.menus)) {
             info.menuItems = p.menus.map((m: any) => ({
@@ -287,6 +298,15 @@ async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> 
             info.reviewCount = place.visitorReviewsTotal || 0;
             info.reviewScore = place.visitorReviewsScore || 0;
             info.tags = place.tags || [];
+
+            // 추가 키워드 탐색 (분위기/서비스 관련)
+            const placeKeywords = deepSearchByTypename(apollo, 'PlaceReviewKeyword');
+            const visitorKeywords = deepSearchByTypename(apollo, 'VisitorReviewKeyword');
+            const allKeywords = [...placeKeywords, ...visitorKeywords].map(k => k.name).filter(Boolean);
+
+            if (allKeywords.length > 0) {
+                info.tags = Array.from(new Set([...(info.tags || []), ...allKeywords]));
+            }
 
             if (place.coordinate) {
                 info.x = place.coordinate.x;
@@ -364,7 +384,10 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
         reviewCount: 0,
         reviewScore: 0,
         x: '',
-        y: ''
+        y: '',
+        reviewKeywords: [],
+        menus: [],
+        photos: []
     };
 
     try {
@@ -433,6 +456,10 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
                 partialData: mergedData
             };
         }
+
+        mergedData.reviewKeywords = mergedData.tags || [];
+        mergedData.menus = mergedData.menuItems?.map(m => m.name) || [];
+        mergedData.photos = mergedData.imageUrls || [];
 
         return {
             success: true,

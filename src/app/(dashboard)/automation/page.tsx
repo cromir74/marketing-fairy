@@ -279,7 +279,10 @@ function AutomationPageContent() {
             if (res.ok) {
                 setPlaceData(data);
                 // 분석된 정보를 바탕으로 주제 자동 설정
-                const suggestedTopic = `[${data.name}] ${data.reviewKeywords.slice(0, 3).join(", ")} 특징을 살린 블로그 포스팅`;
+                const keywordsText = data.reviewKeywords && data.reviewKeywords.length > 0
+                    ? data.reviewKeywords.slice(0, 3).join(", ")
+                    : (data.category || "매장");
+                const suggestedTopic = `[${data.name}] ${keywordsText} 특징을 살린 블로그 포스팅`;
                 setTopic(suggestedTopic);
             } else {
                 alert(data.error || "분석 중 오류가 발생했습니다.");
