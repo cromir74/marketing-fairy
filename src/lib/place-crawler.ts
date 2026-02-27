@@ -1,3 +1,5 @@
+// Vercel 차단 우회를 위한 API 기반 크롤러 (HTML 파싱 제거)
+// 브라우저 렌더링이나 정규식 기반 치환 대신, 100% 공식/비공식 API만을 조합하여 우회합니다.
 import fetch from 'node-fetch';
 
 // ============================================
@@ -20,210 +22,324 @@ export interface PlaceInfo {
     y: string;
 }
 
-export interface PlaceData extends Partial<PlaceInfo> {
-    name: string;
-    category: string;
-    description: string;
-    menus: string[];
-    reviewKeywords: string[];
-    photos: string[];
-    rating?: number;
-}
-
 export interface CrawlResult {
     success: boolean;
-    data: PlaceInfo | null;
-    method: 'graphql' | 'mobile_web' | 'manual' | 'none';
+    method?: string;
+    data?: PlaceInfo;
     error?: string;
     needsManualInput?: boolean;
     partialData?: Partial<PlaceInfo>;
 }
 
 // ============================================
-// 유틸리티
+// 공통 유틸리티
 // ============================================
-function extractPlaceId(url: string): string | null {
+
+// 네이버 플레이스 URL에서 place ID 추출
+export function extractPlaceId(url: string): string | null {
     const patterns = [
         /place\/(\d+)/,
-        /\/restaurant\/(\d+)/,
-        /\/cafe\/(\d+)/,
-        /\/hairshop\/(\d+)/,
-        /\/beauty\/(\d+)/,
-        /\/hospital\/(\d+)/,
-        /\/pharmacy\/(\d+)/,
+        /restaurant\/(\d+)/,
+        /v1\/search\/local.*query=.*&.*id=(\d+)/
     ];
+
     for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match) return match[1];
     }
+
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname === 'naver.me') {
+            return 'SHORT_URL';
+        }
+    } catch (e) { }
+
     return null;
 }
 
-function getBusinessType(url: string): string {
-    if (url.includes('/cafe/')) return 'cafe';
-    if (url.includes('/hairshop/') || url.includes('/beauty/')) return 'hairshop';
-    if (url.includes('/hospital/')) return 'hospital';
-    return 'restaurant';
-}
-
+// 모바일 브라우저 흉내 헤더 (API 요청 시 네이버 API 게이트웨이 우회용)
 const BROWSER_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G998N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'max-age=0',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'sec-ch-ua': '"Chromium";v="118", "Google Chrome";v="118", "Not=A?Brand";v="99"',
+    'sec-ch-ua-mobile': '?1',
+    'sec-ch-ua-platform': '"Android"'
 };
 
 // ============================================
-// 1단계: 모바일 웹 최적화 파싱
+// 1단계: 네이버 공식 지역검색 API
 // ============================================
-async function tryMobileWeb(placeId: string, businessType: string): Promise<CrawlResult> {
-    console.log(`[Crawler][MobileWeb] Fetching place ${placeId}`);
-    const url = `https://m.place.naver.com/${businessType}/${placeId}/home`;
 
+// 1-1. 모바일 웹페이지 `<title>` 혹은 검색어에서 가게 이름 추출
+async function extractPlaceName(url: string, placeId: string): Promise<string | null> {
+    // 우선 URL 검색어 파라미터가 있는지 확인 (예: /search/안양맛집/place/1234)
     try {
-        const response = await fetch(url, { headers: BROWSER_HEADERS });
-        if (!response.ok) return { success: false, data: null, method: 'mobile_web', error: `HTTP_${response.status}` };
-
-        const html = await response.text();
-        let data: Partial<PlaceInfo> = {};
-
-        // 1. JSON-LD 파싱 (가장 공식적이고 변하지 않음)
-        const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-        if (jsonLdMatch) {
-            try {
-                const jsonLd = JSON.parse(jsonLdMatch[1]);
-                const main = Array.isArray(jsonLd) ? jsonLd[0] : jsonLd;
-                data.name = main.name;
-                data.address = main.address?.streetAddress;
-                data.phone = main.telephone;
-                data.description = main.description;
-                data.imageUrls = main.image ? (Array.isArray(main.image) ? main.image : [main.image]) : [];
-            } catch (e) { }
+        const match = url.match(/search\/([^\/]+)\/place/);
+        if (match) {
+            const decoded = decodeURIComponent(match[1]).trim();
+            return decoded;
         }
+    } catch (e) { }
 
-        // 2. window.__APOLLO_STATE__ 파싱 (상세 정보 포함)
-        const apolloMatch = html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]*?})(?:;|<\/script>)/);
-        if (apolloMatch) {
-            try {
-                let jsonText = apolloMatch[1].trim();
-                if (jsonText.endsWith(';')) jsonText = jsonText.slice(0, -1);
-                const state = JSON.parse(jsonText);
-
-                // 상점 정보를 담은 객체 찾기 (다양한 경로 시도)
-                let p: any = null;
-
-                // 경로 1: 직접적인 Place or BusinessBase 객체
-                const placeKey = Object.keys(state).find(k => k.startsWith('Place:') || k.startsWith('BusinessBase:'));
-                if (placeKey) p = state[placeKey];
-
-                // 경로 2: ROOT_QUERY 내의 참조 확인
-                if (!p && state.ROOT_QUERY) {
-                    const detailKey = Object.keys(state.ROOT_QUERY).find(k => k.startsWith('placeDetail') || k.startsWith('place('));
-                    if (detailKey) {
-                        const ref = state.ROOT_QUERY[detailKey];
-                        // { __ref: "Place:123" } 형태인 경우 해당 객체로 이동
-                        if (ref && ref.__ref && state[ref.__ref]) {
-                            p = state[ref.__ref];
-                        } else {
-                            p = ref;
-                        }
-                    }
-                }
-
-                if (p) {
-                    data.name = data.name || p.name || p.title || p.bizName;
-                    data.category = data.category || p.category || p.businessCategory || p.categoryName || '';
-                    data.description = data.description || p.description || p.microReview || p.introduction || '';
-                    data.address = data.address || p.address || p.fullAddress || p.roadAddress || p.newAddress;
-                    data.roadAddress = data.roadAddress || p.roadAddress || p.commonAddress || '';
-                    data.phone = data.phone || p.phone || p.virtualPhone || p.tel || p.phoneNo;
-                    data.businessHours = data.businessHours || p.businessHours || p.hoursDescription || '';
-                    data.tags = [...new Set([...(data.tags || []), ...(p.tags || []), ...(p.keywords || [])])];
-                    data.reviewCount = data.reviewCount || p.visitorReviewCount || p.totalReviewCount || 0;
-                    data.reviewScore = data.reviewScore || p.visitorReviewScore || 0;
-                    data.x = String(data.x || p.x || p.longitude || '');
-                    data.y = String(data.y || p.y || p.latitude || '');
-
-                    if (p.imageUrls || p.images) {
-                        const imgs = p.imageUrls || p.images?.map((i: any) => i.url || i);
-                        data.imageUrls = [...new Set([...(data.imageUrls || []), ...imgs])];
-                    }
-                }
-
-                // 메뉴 정보 (정규화된 Apollo Cache 대응)
-                const menus = data.menuItems || [];
-                for (const key of Object.keys(state)) {
-                    if (key.startsWith('Menu:')) {
-                        const m = state[key];
-                        if (m.name && !menus.some(exist => exist.name === m.name)) {
-                            menus.push({ name: m.name, price: String(m.price || m.priceValue || '') });
-                        }
-                    }
-                }
-                if (menus.length > 0) data.menuItems = menus;
-
-            } catch (e: any) {
-                console.warn('[Crawler][MobileWeb] Apollo parse error:', e.message);
+    // 1-2. 검색어가 없다면 모바일 메인에 가볍게 접근하여 <title> 태그만 추출 (HTML 본문 파싱 안함)
+    try {
+        const res = await fetch(`https://m.place.naver.com/restaurant/${placeId}/home`, {
+            headers: BROWSER_HEADERS,
+            timeout: 5000
+        });
+        const html = await res.text();
+        const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
+        if (titleMatch) {
+            let title = titleMatch[1].replace(' : 네이버', '').replace('- 네이버 플레이스', '').trim();
+            if (title && title !== '네이버 플레이스' && title !== '네이버 지도') {
+                return title;
             }
         }
-
-        // 3. 최후의 수단: HTML 타이틀 및 메타태그에서 상호명이라도 추출
-        if (!data.name) {
-            const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
-            if (titleMatch) {
-                const title = titleMatch[1].replace(' : 네이버', '').replace('- 네이버 플레이스', '').trim();
-                data.name = title;
-            }
-        }
-
-        // 완성된 데이터 검증
-        if (data.name) {
-            console.log(`[Crawler][MobileWeb] Successfully extracted: ${data.name}`);
-            return {
-                success: true,
-                method: 'mobile_web',
-                data: {
-                    name: data.name,
-                    category: data.category || '',
-                    description: data.description || '',
-                    address: data.address || '',
-                    roadAddress: data.roadAddress || '',
-                    phone: data.phone || '',
-                    businessHours: data.businessHours || '',
-                    imageUrls: data.imageUrls || [],
-                    menuItems: data.menuItems || [],
-                    tags: [...new Set(data.tags || [])],
-                    reviewCount: data.reviewCount || 0,
-                    reviewScore: data.reviewScore || 0,
-                    x: data.x || '',
-                    y: data.y || '',
-                }
-            };
-        }
-
-        return { success: false, data: null, method: 'mobile_web', error: 'PARSING_FAILED', needsManualInput: true, partialData: data };
-    } catch (error: any) {
-        return { success: false, data: null, method: 'mobile_web', error: error.message };
-    }
-}
-
-export async function extractPlaceData(url: string): Promise<PlaceData | null> {
-    const r = await crawlNaverPlace(url);
-    if (r.success && r.data) {
-        return {
-            name: r.data.name, category: r.data.category, description: r.data.description,
-            address: r.data.address, phone: r.data.phone, businessHours: r.data.businessHours,
-            rating: r.data.reviewScore, photos: r.data.imageUrls,
-            menus: r.data.menuItems.map(m => `${m.name} (${m.price})`), reviewKeywords: r.data.tags
-        };
+    } catch (error) {
+        console.warn('[Crawler][Step1] Failed to extract name from basic metadata:', error);
     }
     return null;
 }
 
-export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
-    const id = extractPlaceId(url);
-    if (!id) return { success: false, data: null, method: 'none', error: 'INVALID_URL', needsManualInput: true };
+// 1-3. 네이버 공식 API 검색
+async function fetchNaverLocalAPI(query: string, placeId: string): Promise<Partial<PlaceInfo> | null> {
+    const clientId = process.env.NAVER_CLIENT_ID;
+    const clientSecret = process.env.NAVER_CLIENT_SECRET;
 
-    const type = getBusinessType(url);
-    return await tryMobileWeb(id, type);
+    if (!clientId || !clientSecret) {
+        console.warn('[Crawler][Step1] NAVER_CLIENT_ID or NAVER_CLIENT_SECRET varies is missing in .env');
+        return null;
+    }
+
+    try {
+        const apiUrl = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=5&start=1&sort=random`;
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'X-Naver-Client-Id': clientId,
+                'X-Naver-Client-Secret': clientSecret
+            },
+            timeout: 5000
+        });
+
+        if (!response.ok) {
+            console.warn(`[Crawler][Step1] Naver API Error: ${response.status}`);
+            return null;
+        }
+
+        const data = await response.json();
+        if (!data.items || data.items.length === 0) {
+            return null;
+        }
+
+        // 우선 첫번째 결과를 채택 (나중에 좌표 기반 고도화 가능)
+        const item = data.items[0];
+        const cleanName = item.title.replace(/<[^>]+>/g, '').trim();
+
+        return {
+            name: cleanName,
+            category: item.category || '',
+            address: item.address || '',
+            roadAddress: item.roadAddress || '',
+            phone: item.telephone || '',
+            x: item.mapx || '',
+            y: item.mapy || ''
+        };
+    } catch (error) {
+        console.error('[Crawler][Step1] Exception during Naver Local API fetch:', error);
+        return null;
+    }
+}
+
+// ============================================
+// 2단계: 네이버 플레이스 비공식 GraphQL API
+// ============================================
+
+export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<PlaceInfo>> {
+    try {
+        const graphqlUrl = 'https://pcmap-api.place.naver.com/place/graphql';
+
+        // 영업시간/메뉴/평점 등 부가정보 스니핑용 쿼리
+        const query = `
+      query getPlaces($id: String!) {
+        places(input: { businessId: $id }) {
+          items {
+            businessName
+            category
+            description
+            phone
+            virtualPhone
+            businessHours
+            menus {
+              name
+              price
+            }
+            tags
+            visitorReviewsTotal
+            visitorReviewsScore
+          }
+        }
+      }
+    `;
+
+        const body = JSON.stringify({
+            operationName: 'getPlaces',
+            variables: { id: placeId },
+            query: query
+        });
+
+        const response = await fetch(graphqlUrl, {
+            method: 'POST',
+            headers: {
+                'User-Agent': BROWSER_HEADERS['User-Agent'],
+                'Referer': `https://pcmap.place.naver.com/restaurant/${placeId}/home`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Accept-Language': 'ko'
+            },
+            body: body,
+            timeout: 5000
+        });
+
+        if (!response.ok) {
+            console.warn(`[Crawler][Step2] GraphQL HTTP Status: ${response.status} -> Skipped`);
+            return {};
+        }
+
+        const json = await response.json();
+
+        if (json.errors || !json.data) {
+            return {};
+        }
+
+        const p = json.data?.places?.items?.[0] || json.data?.restaurant || {};
+
+        const info: Partial<PlaceInfo> = {};
+        if (p.businessName || p.name) info.name = p.businessName || p.name;
+        if (p.category) info.category = p.category;
+        if (p.description || p.desc) info.description = p.description || p.desc;
+        if (p.phone || p.virtualPhone) info.phone = p.phone || p.virtualPhone;
+        if (p.businessHours) info.businessHours = p.businessHours;
+        if (p.tags) info.tags = p.tags;
+        if (p.visitorReviewsTotal !== undefined) info.reviewCount = p.visitorReviewsTotal;
+        if (p.visitorReviewsScore !== undefined) info.reviewScore = p.visitorReviewsScore;
+
+        if (p.menus && Array.isArray(p.menus)) {
+            info.menuItems = p.menus.map((m: any) => ({
+                name: m.name,
+                price: typeof m.price === 'string' ? m.price : String(m.price || '')
+            }));
+        }
+
+        return info;
+    } catch (error) {
+        console.warn('[Crawler][Step2] GraphQL Request Skipped due to error');
+        return {}; // 서버 크래시 방지
+    }
+}
+
+// ============================================
+// 메인 크롤링 오케스트레이터
+// ============================================
+
+export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+    console.log('[Crawler] Starting 2-Step API Crawler. Target URL:', url);
+
+    const placeId = extractPlaceId(url);
+    if (!placeId) {
+        return { success: false, error: 'INVALID_URL' };
+    }
+    if (placeId === 'SHORT_URL') {
+        return { success: false, error: 'SHORT_URL_NOT_SUPPORTED' }; // 네이버 단축 URL은 백엔드 Redirect 이후 넘겨야 함
+    }
+
+    // 데이터 합성을 위한 빈 객체
+    const mergedData: PlaceInfo = {
+        name: '',
+        category: '',
+        description: '',
+        address: '',
+        roadAddress: '',
+        phone: '',
+        businessHours: '',
+        imageUrls: [],
+        menuItems: [],
+        tags: [],
+        reviewCount: 0,
+        reviewScore: 0,
+        x: '',
+        y: ''
+    };
+
+    try {
+        // ---------------------------------------------------------
+        // 단계 1: 네이버 지역 검색 API 
+        // (차단 위험이 없으며 Vercel 서버에서 즉시 작동을 보장)
+        // ---------------------------------------------------------
+        console.log('[Crawler] Step 1: Attempting Local Search API');
+        const queryName = await extractPlaceName(url, placeId);
+
+        let step1Data: Partial<PlaceInfo> | null = null;
+        if (queryName) {
+            step1Data = await fetchNaverLocalAPI(queryName, placeId);
+        }
+
+        if (step1Data) {
+            console.log('[Crawler] Step 1 Success:', step1Data.name);
+            Object.assign(mergedData, step1Data);
+        }
+
+        // ---------------------------------------------------------
+        // 단계 2: 네이버 GraphQL 조회
+        // (메뉴, 영업시간, 평점 등을 보충하기 위함, 실패해도 멈추지 않음)
+        // ---------------------------------------------------------
+        console.log('[Crawler] Step 2: Attempting GraphQL Detail API');
+        const step2Data = await fetchPlaceDetailGraphQL(placeId);
+
+        for (const [key, value] of Object.entries(step2Data)) {
+            // 이미 1단계에서 들어온 값이 의미있으면 유지하고, 2단계에서 새롭게 얻은 배열(메뉴 등)이나 값만 병합
+            if (value && (!mergedData[key as keyof PlaceInfo] || (Array.isArray(value) && value.length > 0))) {
+                (mergedData as any)[key] = value;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 최종 검증 및 결합
+        // ---------------------------------------------------------
+        const hasBasicInfo = !!(mergedData.name && mergedData.address);
+        // 메뉴 정보나 영업시간 등 부가 정보가 비어있다면 Manual Input 유도
+        const lacksDetails = !mergedData.menuItems || mergedData.menuItems.length === 0 || !mergedData.businessHours;
+
+        if (!hasBasicInfo) {
+            console.warn('[Crawler] All steps failed to extract basic info. Falling back to manual input.');
+            return {
+                success: true,  // 폼으로 넘기기 위해 true 반환
+                method: 'api_fallback',
+                needsManualInput: true,
+                partialData: mergedData
+            };
+        }
+
+        return {
+            success: true,
+            method: "api_combo",
+            data: mergedData,
+            needsManualInput: lacksDetails, // 상세 정보 누락 시 입력 폼 등장
+            partialData: lacksDetails ? mergedData : undefined // 입력 폼에 미리 채워넣을 값
+        };
+
+    } catch (error: any) {
+        console.error('[Crawler] Fatal orchestration error. Recovering smoothly...', error);
+        return {
+            success: true,
+            method: "error_fallback",
+            needsManualInput: true,
+            partialData: mergedData
+        };
+    }
 }

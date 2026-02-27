@@ -7,7 +7,8 @@ import { headers } from 'next/headers'
 export async function signInWithGoogle() {
     const supabase = await createClient()
     const headersList = await headers()
-    const origin = headersList.get('origin') || 'http://localhost:3000'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || headersList.get('origin') || 'http://localhost:3000'
+    const origin = siteUrl.replace(/\/$/, ''); // 트레일링 슬래시 제거
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -30,7 +31,8 @@ export async function signInWithGoogle() {
 export async function signInWithKakao() {
     const supabase = await createClient()
     const headersList = await headers()
-    const origin = headersList.get('origin') || 'http://localhost:3000'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || headersList.get('origin') || 'http://localhost:3000'
+    const origin = siteUrl.replace(/\/$/, ''); // 트레일링 슬래시 제거
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',

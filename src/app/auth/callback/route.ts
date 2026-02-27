@@ -21,7 +21,9 @@ export async function GET(request: Request) {
             if (isLocalEnv) {
                 return NextResponse.redirect(`${origin}${next}`);
             } else if (forwardedHost) {
-                return NextResponse.redirect(`https://${forwardedHost}${next}`);
+                // forwardedHost가 주어지면 해당 호스트 기반으로 리다이렉트 (프로토콜은 origin의 프로토콜 유지)
+                const protocol = origin.split(":")[0];
+                return NextResponse.redirect(`${protocol}://${forwardedHost}${next}`);
             } else {
                 return NextResponse.redirect(`${origin}${next}`);
             }

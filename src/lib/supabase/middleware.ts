@@ -44,5 +44,10 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
     }
 
+    // 뒤로가기 시 캐시된 페이지가 보이는 것을 방지 (로그아웃 후 보안)
+    supabaseResponse.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    supabaseResponse.headers.set('Pragma', 'no-cache');
+    supabaseResponse.headers.set('Expires', '0');
+
     return supabaseResponse;
 }

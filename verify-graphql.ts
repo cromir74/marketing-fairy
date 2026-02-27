@@ -1,7 +1,7 @@
 import { crawlNaverPlace } from './src/lib/place-crawler';
 
 async function test() {
-    const url = "https://map.naver.com/p/search/%EC%95%88%EC%96%91%EB%A7%9B%EC%A7%91/place/2036861057?placePath=/home";
+    const url = "https://map.naver.com/p/search/%EC%95%88%EC%96%91%EB%A7%9B%EC%A7%91/place/2036861057?placePath=/home?abtExp=PLACE-AD-REVIEWIMG:0&bk_query=%EC%95%88%EC%96%91%EB%A7%9B%EC%A7%91&entry=pll&from=map&fromNxList=true&fromPanelNum=2&timestamp=202602271202&locale=ko&svcName=map_pcv5&searchText=%EC%95%88%EC%96%91%EB%A7%9B%EC%A7%91&searchType=place&c=15.00,0,0,0,dh";
     console.log("Testing GraphQL Crawler (Standalone)...");
     try {
         const result = await crawlNaverPlace(url);
