@@ -64,11 +64,22 @@ export async function POST(req: Request) {
         automation = new NaverAutomation();
         await automation.initialize();
 
-        // 발행 과정 로그를 리턴하기 위해 간단한 메시지 캡처 (실제 운영시 SSE 권장)
-        const logs: string[] = [];
-        const captureLog = (msg: string) => logs.push(msg);
+        // 2-1. 쿠키로 로그인 우선 시도
+        let loggedIn = false;
+        try {
+            loggedIn = await automation.loginWithCookies();
+        } catch (e) {
+            console.log("[PublishAPI] Cookie login failed, falling back to ID/PW");
+        }
 
-        await automation.login(id, pw);
+        // 2-2. 쿠키 로그인 실패 시 ID/PW로 로그인
+        if (!loggedIn) {
+            if (!id || !pw) {
+                return NextResponse.json({ error: "네이버 세션이 만료되었습니다. 다시 로그인 세팅이 필요하거나 ID/PW를 제공해주세요." }, { status: 401 });
+            }
+            await automation.login(id, pw);
+        }
+
         await automation.enterEditor();
         const publishedUrl = await automation.publish({
             title,

@@ -183,6 +183,59 @@ function AutomationPageContent() {
     const [scheduledHour, setScheduledHour] = useState("10");
     const [scheduledMinute, setScheduledMinute] = useState("00");
 
+    // 네이버 세션 동기화 상태
+    const [hasSavedCookies, setHasSavedCookies] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [captchaUrl, setCaptchaUrl] = useState<string | null>(null);
+
+    // 쿠키 상태 확인
+    const checkCookieStatus = async () => {
+        try {
+            const res = await fetch("/api/naver/login-setup");
+            const data = await res.json();
+            setHasSavedCookies(data.hasSavedCookies);
+        } catch (e) {
+            console.error("Failed to check cookie status:", e);
+        }
+    };
+
+    useEffect(() => {
+        checkCookieStatus();
+    }, []);
+
+    const handleSyncNaver = async () => {
+        if (!naverId || !naverPw) {
+            alert("네이버 아이디와 비밀번호를 입력해주세요.");
+            return;
+        }
+
+        setIsSyncing(true);
+        setCaptchaUrl(null);
+        try {
+            const res = await fetch("/api/naver/login-setup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: naverId, pw: naverPw }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setHasSavedCookies(true);
+                alert("네이버 세션 동기화가 완료되었습니다! 이제 로그인이 더 안정적입니다.");
+            } else {
+                if (data.captchaUrl) {
+                    setCaptchaUrl(data.captchaUrl + "?t=" + Date.now());
+                    alert("보안 문자(캡차)가 발생했습니다. 아래 이미지를 확인하고 다시 시도하거나, 잠시 후 시도해주세요.");
+                } else {
+                    alert(data.error || "동기화 중 오류가 발생했습니다.");
+                }
+            }
+        } catch (err) {
+            alert("서버와 통신 중 오류가 발생했습니다.");
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files);
@@ -686,12 +739,19 @@ function AutomationPageContent() {
                                 <UserCircle className="h-5 w-5 text-blue-500" />
                                 네이버 계정
                             </h2>
-                            <span className="text-[10px] text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
-                                <Check className="h-3 w-3" /> 기기 내 자동 저장됨
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {hasSavedCookies && (
+                                    <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-full">
+                                        <ShieldCheck className="h-3.5 w-3.5" /> 세션 연결됨
+                                    </span>
+                                )}
+                                <span className="text-[10px] text-gray-400 flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-full">
+                                    <Check className="h-3 w-3" /> 기기 내 자동 저장됨
+                                </span>
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                            <div className="md:col-span-5">
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">아이디</label>
                                 <Input
                                     value={naverId}
@@ -700,7 +760,7 @@ function AutomationPageContent() {
                                     className="bg-gray-50/50"
                                 />
                             </div>
-                            <div>
+                            <div className="md:col-span-4">
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">비밀번호</label>
                                 <Input
                                     type="password"
@@ -710,7 +770,36 @@ function AutomationPageContent() {
                                     className="bg-gray-50/50"
                                 />
                             </div>
+                            <div className="md:col-span-3">
+                                <Button
+                                    variant="secondary"
+                                    className={`w-full h-10 border-blue-100 text-blue-600 hover:bg-blue-50 hover:text-blue-700 ${isSyncing ? "animate-pulse" : ""}`}
+                                    onClick={handleSyncNaver}
+                                    disabled={isSyncing}
+                                >
+                                    {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                                    세션 동기화
+                                </Button>
+                            </div>
                         </div>
+
+                        {captchaUrl && (
+                            <div className="mt-4 p-4 border border-amber-100 bg-amber-50 rounded-xl animate-in fade-in slide-in-from-top-2">
+                                <p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> 보안 문자가 발생했습니다
+                                </p>
+                                <div className="bg-white p-2 rounded-lg border border-amber-200 inline-block mb-2">
+                                    <img src={captchaUrl} alt="Captcha" className="h-12" />
+                                </div>
+                                <p className="text-[10px] text-amber-600">
+                                    현재 환경에서 캡차 입력을 지원하지 않습니다. 잠시 후 다시 시도하거나 세션 쿠키를 수동으로 설정해야 합니다.
+                                </p>
+                            </div>
+                        )}
+
+                        <p className="mt-3 text-[11px] text-gray-500 leading-relaxed">
+                            * <b>세션 동기화</b>를 한 번 완료하면 캡차 발생 확률이 낮아지고 블로그 발행이 더 안정적으로 작동합니다.
+                        </p>
                     </section>
 
                     {/* 2. 콘텐츠 주제 및 사진 */}

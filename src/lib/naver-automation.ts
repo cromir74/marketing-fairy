@@ -1,5 +1,10 @@
-import puppeteer, { Browser, Page, ElementHandle, Frame } from 'puppeteer';
+import puppeteer from 'puppeteer-extra';
+import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { Browser, Page, Frame } from 'puppeteer';
 import path from 'path';
+import fs from 'fs-extra';
+
+puppeteer.use(StealthPlugin());
 
 export interface NaverPublishOptions {
     title: string;
@@ -16,6 +21,8 @@ interface ParsedLine {
     index?: number | null;
 }
 
+const COOKIE_FILE = path.join(process.cwd(), 'naver-cookies.json');
+
 export class NaverAutomation {
     private browser: Browser | null = null;
     private page: Page | null = null;
@@ -27,75 +34,155 @@ export class NaverAutomation {
         if (this.onLogCallback) this.onLogCallback(message, type);
     }
 
-    async initialize() {
-        this.addLog("브라우저 시작 중...");
-        this.browser = await puppeteer.launch({
-            headless: true,
+    async initialize(headless: boolean = true) {
+        this.addLog("브라우저 시작 중 (Stealth 적용)...");
+        this.browser = await (puppeteer as any).launch({
+            headless: headless,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
                 '--window-size=1280,1024',
-                '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             ],
             defaultViewport: { width: 1280, height: 1024 }
         });
-        const pages = await this.browser.pages();
-        this.page = pages.length > 0 ? pages[0] : await this.browser.newPage();
+        const pages = await this.browser!.pages();
+        this.page = pages.length > 0 ? pages[0] : await this.browser!.newPage();
+
+        // 실제 브라우저처럼 언어 설정
+        await this.page.setExtraHTTPHeaders({
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+        });
     }
 
     async close() {
         if (this.browser) await this.browser.close();
     }
 
+    /**
+     * 쿠키 파일이 존재하는지 확인
+     */
+    async hasSavedCookies(): Promise<boolean> {
+        return await fs.pathExists(COOKIE_FILE);
+    }
+
+    /**
+     * 저장된 쿠키로 로그인 시도
+     */
+    async loginWithCookies(): Promise<boolean> {
+        if (!this.page) throw new Error("Browser not initialized");
+
+        if (!await this.hasSavedCookies()) {
+            this.addLog("저장된 쿠키 파일이 없습니다.", "warning");
+            return false;
+        }
+
+        try {
+            this.addLog("저장된 쿠키 로드 중...");
+            const cookies = await fs.readJSON(COOKIE_FILE);
+            await this.page.setCookie(...cookies);
+
+            await this.page.goto('https://www.naver.com', { waitUntil: 'networkidle2' });
+
+            // 로그인 상태 확인 (메일 알림 아이콘이나 닉네임 영역 확인)
+            const isLoggedIn = await this.page.evaluate(() => {
+                const myView = document.querySelector('.MyView-module__my_info___fBv7A') ||
+                    document.querySelector('#GNBMY_ID, .nav_my_area');
+                return !!myView;
+            });
+
+            if (isLoggedIn) {
+                // 네이버 ID 추출 (URL이나 페이지 소스에서)
+                this.naverId = await this.page.evaluate(() => {
+                    const link = document.querySelector('a[href*="blog.naver.com"]') as HTMLAnchorElement;
+                    if (link && link.href) {
+                        const match = link.href.match(/blog\.naver\.com\/([^/?]+)/);
+                        return match ? match[1] : "";
+                    }
+                    return "";
+                });
+
+                this.addLog(`쿠키로 로그인 성공 (ID: ${this.naverId})`, "success");
+                return true;
+            }
+        } catch (e: any) {
+            this.addLog(`쿠키 로그인 중 오류: ${e.message}`, "error");
+        }
+
+        this.addLog("쿠키 로그인 실패 또는 만료됨", "warning");
+        return false;
+    }
+
+    /**
+     * 아이디/비밀번호로 로그인 시도 후 성공하면 쿠키 저장
+     */
     async login(id: string, pw: string) {
         if (!this.page) throw new Error("Browser not initialized");
-        this.naverId = id; // 아이디 저장
-        this.addLog("네이버 로그인 시도 중...");
+        this.naverId = id;
+        this.addLog("네이버 로그인 시도 중 (ID/PW)...");
 
         try {
             await this.page.goto('https://nid.naver.com/nidlogin.login', { waitUntil: 'networkidle2' });
 
-            // 기존 세션 쿠키 삭제 (참조 코드 반영)
-            const client = await this.page.target().createCDPSession();
-            await client.send('Network.deleteCookies', { name: 'NID_AUT', domain: '.naver.com' });
-            await client.send('Network.deleteCookies', { name: 'NID_SES', domain: '.naver.com' });
+            // 직접 value 설정 대신 keyboard type 사용 (추가 지연)
+            await this.page.click('#id');
+            await this.page.keyboard.type(id, { delay: 100 });
             await new Promise(r => setTimeout(r, 500));
-            await this.page.reload({ waitUntil: 'networkidle2' });
-        } catch (e) {
-            this.addLog("로그인 페이지 초기화 중 오류 (무시하고 진행)", "warning");
-        }
 
-        await this.page.evaluate((id, pw) => {
-            const idInput = document.querySelector('#id') as HTMLInputElement;
-            const pwInput = document.querySelector('#pw') as HTMLInputElement;
-            if (idInput) idInput.value = id;
-            if (pwInput) pwInput.value = pw;
-        }, id, pw);
+            await this.page.click('#pw');
+            await this.page.keyboard.type(pw, { delay: 100 });
+            await new Promise(r => setTimeout(r, 500));
 
-        await new Promise(r => setTimeout(r, 500));
-        await this.page.click('.btn_login');
-        try {
-            await this.page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 });
-        } catch (e) {
-            this.addLog("로그인 후 네비게이션 대기 시간 초과 (계속 진행)", "warning");
-        }
-
-        if (this.page.url().includes('nidlogin.login') || this.page.url().includes('login.naver.com')) {
-            // 조금 더 기다려봄
+            await this.page.click('.btn_login');
             await new Promise(r => setTimeout(r, 2000));
-            if (this.page.url().includes('nidlogin.login')) {
-                throw new Error("로그인 실패: 계정 정보를 확인하거나 캡차 입력을 확인하세요.");
-            }
-        }
 
-        this.addLog("로그인 성공", "success");
+            // 내비게이션 대기 또는 에러 체크
+            const currentUrl = this.page.url();
+            if (currentUrl.includes('nidlogin.login')) {
+                // 캡차 확인
+                const isCaptcha = await this.page.evaluate(() => {
+                    return !!document.querySelector('#captcha') || !!document.querySelector('.captcha_wrap');
+                });
+
+                if (isCaptcha) {
+                    const screenshotPath = path.join(process.cwd(), 'public', 'naver_captcha.png');
+                    await fs.ensureDir(path.dirname(screenshotPath));
+                    await this.page.screenshot({ path: screenshotPath });
+                    throw new Error("보안문자(캡차)가 발생했습니다. public/naver_captcha.png를 확인하세요.");
+                }
+
+                throw new Error("로그인 실패: 아이디/비밀번호를 확인하거나 캡차 발생 여부를 확인하세요.");
+            }
+
+            this.addLog("로그인 성공, 쿠키 저장 중...");
+            const cookies = await this.page.cookies();
+            await fs.writeJSON(COOKIE_FILE, cookies);
+            this.addLog("쿠키 저장 완료", "success");
+
+        } catch (e: any) {
+            this.addLog(`로그인 에러: ${e.message}`, "error");
+            throw e;
+        }
     }
 
     async enterEditor() {
         if (!this.page) throw new Error("Browser not initialized");
-        if (!this.naverId) throw new Error("Naver ID not found. Please login first.");
+
+        // 만약 naverId가 없다면 쿠키에서 유추하거나 로그인 과정에서 저장된 것 사용
+        if (!this.naverId) {
+            await this.page.goto('https://www.naver.com', { waitUntil: 'networkidle2' });
+            this.naverId = await this.page.evaluate(() => {
+                const link = document.querySelector('a[href*="blog.naver.com"]') as HTMLAnchorElement;
+                if (link && link.href) {
+                    const match = link.href.match(/blog\.naver\.com\/([^/?]+)/);
+                    return match ? match[1] : "";
+                }
+                return "";
+            });
+        }
+
+        if (!this.naverId) throw new Error("Naver ID를 식별할 수 없습니다. 로그인이 필요합니다.");
 
         this.addLog("블로그 에디터 진입 중...");
 
@@ -105,12 +192,10 @@ export class NaverAutomation {
                 waitUntil: 'networkidle2',
                 timeout: 60000
             });
-            this.addLog(`현재 URL: ${this.page.url()}`);
         } catch (e: any) {
             this.addLog(`에디터 페이지 로드 지연/실패: ${e.message}`, "warning");
         }
 
-        // 도움말/공지/취소 팝업 닫기 시도
         await new Promise(r => setTimeout(r, 2000));
         await this.clearPopups(this.page);
     }
@@ -146,7 +231,6 @@ export class NaverAutomation {
         let frame: any = null;
 
         try {
-            // 1. #mainFrame 찾기
             const frameHandle = await this.page.waitForSelector('#mainFrame', { timeout: 15000 });
             if (frameHandle) {
                 frame = await frameHandle.contentFrame();
@@ -156,7 +240,6 @@ export class NaverAutomation {
             this.addLog("#mainFrame을 찾을 수 없음, 직접 페이지 탐색 시도...", "warning");
         }
 
-        // 2. 만약 #mainFrame이 없다면 현재 페이지 자체가 에디터일 수 있음
         if (!frame) {
             const frames = this.page.frames();
             const targetFrame = frames.find(f => f.name() === 'mainFrame') ||
@@ -177,7 +260,6 @@ export class NaverAutomation {
 
         if (!frame) throw new Error("네이버 에디터를 로드할 수 없습니다. (프레임 인식 실패)");
 
-        // 프레임 내부에서도 팝업 제거 시도 (임시 저장 글 불러오기 등)
         await this.clearPopups(frame);
         await new Promise(r => setTimeout(r, 500));
 
@@ -201,7 +283,7 @@ export class NaverAutomation {
         this.addLog(`본문 작성 시작 (${parsedLines.length} 줄)`);
 
         let markerIdx = 0;
-        let isFirstText = true; // 첫 번째 텍스트 라인 감지용
+        let isFirstText = true;
 
         for (const line of parsedLines) {
             if (line.type === 'heading') {
@@ -326,8 +408,6 @@ export class NaverAutomation {
         await this.typeTextSlowly(text);
         await new Promise(r => setTimeout(r, 500));
 
-        // 인용구 탈출: 화살표 아래 2번 + 엔터 1번 (사용자 가이드 반영)
-        this.addLog("인용구 탈출 시도 중...");
         await this.page!.keyboard.press('ArrowDown');
         await new Promise(r => setTimeout(r, 300));
         await this.page!.keyboard.press('ArrowDown');
@@ -371,13 +451,11 @@ export class NaverAutomation {
     private async insertImage(frame: Frame, imagePath: string) {
         this.addLog(`이미지 삽입 중: ${path.basename(imagePath)}`);
         try {
-            // 1. 커서를 문서 맨 끝으로 이동
             await this.page!.keyboard.down('Control');
             await this.page!.keyboard.press('End');
             await this.page!.keyboard.up('Control');
             await new Promise(r => setTimeout(r, 500));
 
-            // 2. 이미지 버튼 클릭 시도 (업로드 엔진 활성화)
             await frame.evaluate(() => {
                 const imgBtn = document.querySelector('button[data-name="image"]') ||
                     document.querySelector('.se-toolbar-item-image') ||
@@ -390,7 +468,6 @@ export class NaverAutomation {
             });
             await new Promise(r => setTimeout(r, 1000));
 
-            // 3. 파일 input 찾아서 업로드
             const inputHandle = await frame.$('input.se-image-attach-input') ||
                 await frame.$('input[accept*="image"]') ||
                 await frame.$('input[type="file"]');
@@ -398,15 +475,13 @@ export class NaverAutomation {
             if (inputHandle) {
                 await inputHandle.uploadFile(imagePath);
                 this.addLog("파일 전송 완료, 업로드 대기 중...");
-                await new Promise(r => setTimeout(r, 4000)); // 업로드 완료 대기
+                await new Promise(r => setTimeout(r, 4000));
 
-                // 4. 커서를 다시 문서 맨 끝으로 이동
                 await this.page!.keyboard.down('Control');
                 await this.page!.keyboard.press('End');
                 await this.page!.keyboard.up('Control');
                 await new Promise(r => setTimeout(r, 500));
 
-                // 5. 새 문단 생성 (Enter 2번)
                 await this.page!.keyboard.press('Enter');
                 await new Promise(r => setTimeout(r, 200));
                 await this.page!.keyboard.press('Enter');
@@ -427,7 +502,6 @@ export class NaverAutomation {
                     const last = textSections[textSections.length - 1] as HTMLElement;
                     last.focus();
 
-                    // 커서를 해당 섹션의 맨 끝으로 이동
                     const range = document.createRange();
                     range.selectNodeContents(last);
                     range.collapse(false);
@@ -460,14 +534,8 @@ export class NaverAutomation {
         this.addLog(`발행 프로세스 시작 (모드: ${mode})`);
 
         if (mode === 'draft') {
-            this.addLog("임시 저장 시도 중...");
             const draftSaved = await frame.evaluate(() => {
-                const selectors = [
-                    '.save_btn__bzc5B',
-                    'button[data-click-area="tpb.save"]',
-                    '.save_btn__T1ZzW',
-                    '.publish_btn__m9KHH' // 가끔 발행 버튼 근처에 저장 버튼이 있을 수 있음
-                ];
+                const selectors = ['.save_btn__bzc5B', 'button[data-click-area="tpb.save"]', '.save_btn__T1ZzW'];
                 for (const s of selectors) {
                     const btn = document.querySelector(s);
                     if (btn && (btn.textContent?.includes('저장') || btn.getAttribute('aria-label')?.includes('저장'))) {
@@ -480,20 +548,17 @@ export class NaverAutomation {
             });
             await new Promise(r => setTimeout(r, 3000));
             if (draftSaved) this.addLog("임시 저장 완료", "success");
-            else this.addLog("임시 저장 버튼을 찾을 수 없음", "warning");
+            return null;
 
         } else if (mode === 'immediate') {
-            this.addLog("즉시 발행 진행 중...");
             await frame.evaluate(() => {
                 const pubBtn = document.querySelector('.publish_btn__WvYpP') ||
                     document.querySelector('.publish_btn__m9KHH') ||
-                    document.querySelector('button.publish_btn') ||
                     Array.from(document.querySelectorAll('button')).find(b => b.textContent?.trim() === '발행');
                 if (pubBtn) (pubBtn as any).click();
             });
             await new Promise(r => setTimeout(r, 2000));
 
-            this.addLog("최종 발행 버튼 클릭...");
             await frame.evaluate(() => {
                 const confirmBtn = document.querySelector('.confirm_btn') ||
                     document.querySelector('.se-popup-button-confirm');
@@ -502,15 +567,9 @@ export class NaverAutomation {
             await new Promise(r => setTimeout(r, 3000));
             this.addLog("즉시 발행 완료", "success");
 
-            // 발행 후 리다이렉트된 URL 반환
-            const postUrl = this.page!.url();
-            this.addLog(`발행된 글 주소: ${postUrl}`);
-            return postUrl;
+            return this.page!.url();
 
         } else if (mode === 'scheduled') {
-            this.addLog("예약 발행 설정 시작 (10분 단위)...");
-
-            // 1. 예약 시간 계산
             let targetDate: Date;
             if (scheduledTime) {
                 targetDate = new Date(scheduledTime);
@@ -525,7 +584,6 @@ export class NaverAutomation {
             let targetHourNum = targetDate.getHours();
             let min = targetDate.getMinutes();
 
-            // 10분 단위 올림 처리 (네이버 에디터 기준)
             min = Math.ceil(min / 10) * 10;
             if (min >= 60) {
                 min = 0;
@@ -534,10 +592,7 @@ export class NaverAutomation {
             const targetHour = String(targetHourNum).padStart(2, '0');
             const targetMinute = String(min).padStart(2, '0');
 
-            this.addLog(`예약 목표: ${targetDay}일 ${targetHour}:${targetMinute}`);
-
             try {
-                // Step 1: 발행 모달 열기
                 await frame.evaluate(() => {
                     const pubBtn = document.querySelector('.publish_btn__WvYpP') ||
                         document.querySelector('.publish_btn__m9KHH') ||
@@ -546,20 +601,13 @@ export class NaverAutomation {
                 });
                 await new Promise(r => setTimeout(r, 2000));
 
-                // Step 2: '예약' 옵션 선택
                 await frame.evaluate(() => {
                     const labels = Array.from(document.querySelectorAll('label'));
                     const scheduleLabel = labels.find(lbl => lbl.textContent?.trim() === '예약');
-                    if (scheduleLabel) {
-                        (scheduleLabel as any).click();
-                    } else {
-                        const radio = document.getElementById('radio_time2');
-                        if (radio) (radio as any).click();
-                    }
+                    if (scheduleLabel) (scheduleLabel as any).click();
                 });
                 await new Promise(r => setTimeout(r, 1500));
 
-                // Step 3: 달력 열기 (날짜 입력창 클릭)
                 await frame.evaluate(() => {
                     const dateInput = document.querySelector('input[class*="input_date"]') ||
                         document.querySelector('.input_date');
@@ -567,17 +615,13 @@ export class NaverAutomation {
                 });
                 await new Promise(r => setTimeout(r, 1500));
 
-                // Step 4: 날짜 선택
                 await frame.evaluate((day: number) => {
                     const dayButtons = Array.from(document.querySelectorAll('.ui-state-default'));
                     const targetBtn = dayButtons.find(btn => btn.textContent?.trim() === String(day));
-                    if (targetBtn) {
-                        (targetBtn as any).click();
-                    }
+                    if (targetBtn) (targetBtn as any).click();
                 }, targetDay);
                 await new Promise(r => setTimeout(r, 1000));
 
-                // Step 5: 시간(시) 선택
                 await frame.evaluate((hour: string) => {
                     const hourSelect = document.querySelector('select.hour_option__J_heO') ||
                         document.querySelector('select[title="예약 발행 시간 선택"]');
@@ -588,7 +632,6 @@ export class NaverAutomation {
                 }, targetHour);
                 await new Promise(r => setTimeout(r, 500));
 
-                // Step 6: 분 선택
                 await frame.evaluate((minute: string) => {
                     const minuteSelect = document.querySelector('select.minute_option__Vb3xB') ||
                         document.querySelector('select[title="예약 발행 분 선택"]');
@@ -599,19 +642,15 @@ export class NaverAutomation {
                 }, targetMinute);
                 await new Promise(r => setTimeout(r, 500));
 
-                // Step 7: 최종 발행 완료
-                this.addLog("예약 설정 완료, 최종 발행 클릭...");
                 await frame.evaluate(() => {
                     const confirmBtn = document.querySelector('button[class*="confirm_btn"]') ||
                         document.querySelector('.confirm_btn');
                     if (confirmBtn) (confirmBtn as any).click();
                 });
                 await new Promise(r => setTimeout(r, 3000));
-                this.addLog(`예약 발행 성공: ${targetDay}일 ${targetHour}시 ${targetMinute}분`, "success");
-
                 return null;
             } catch (e: any) {
-                this.addLog(`예약 발행 중 오류: ${e.message}`, "error");
+                this.addLog(`예약 발행 실패: ${e.message}`, "error");
                 throw e;
             }
         }
