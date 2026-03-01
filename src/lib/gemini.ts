@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 let aiInstance: GoogleGenAI | null = null;
-function getAI() {
+export function getAI() {
     if (!aiInstance) {
         if (!process.env.GEMINI_API_KEY) {
             throw new Error("GEMINI_API_KEY is not defined in environment variables");
@@ -10,6 +10,7 @@ function getAI() {
     }
     return aiInstance;
 }
+
 
 // ── 마케팅 콘텐츠 생성 ──
 export async function generateMarketingContent(

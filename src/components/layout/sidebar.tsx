@@ -15,6 +15,7 @@ import {
     CalendarClock,
     CalendarDays,
     Lock,
+    Video,
 } from "lucide-react";
 import { signOut } from "@/app/actions/auth";
 import { useState } from "react";
@@ -29,6 +30,7 @@ const navItems = [
     { href: "/content/create", label: "SNS 콘텐츠 생성", icon: Sparkles },
     { href: "/content/scheduled", label: "예약 발행 목록", icon: CalendarClock },
     { href: "/content/history", label: "생성 기록", icon: History },
+    { href: "/reels", label: "릴스 만들기", icon: Video },
 ];
 
 export function Sidebar() {

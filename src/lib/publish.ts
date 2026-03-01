@@ -214,3 +214,48 @@ export async function publishToThreads(imageUrls: string[], content: string) {
     if (publishData.error) throw new Error(`스레드 게시 실패: ${publishData.error.message}`);
     return publishData.id;
 }
+
+export async function publishReelsToInstagram(videoUrl: string, content: string) {
+    if (!INSTAGRAM_ID) throw new Error("Instagram Business Account ID 설정이 누락되었습니다.");
+    if (!INSTAGRAM_TOKEN) throw new Error("Instagram Access Token 설정이 누락되었습니다.");
+    if (!videoUrl) throw new Error("인스타그램 릴스 발행에는 비디오 URL이 필수입니다.");
+
+    let finalCreationId = "";
+    const truncatedContent = content.length > 2200 ? content.substring(0, 2197) + "..." : content;
+
+    const containerRes = await fetch(
+        `https://graph.instagram.com/${IG_API_VERSION}/${INSTAGRAM_ID}/media`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                media_type: "REELS",
+                video_url: videoUrl,
+                caption: truncatedContent,
+                access_token: INSTAGRAM_TOKEN,
+            }),
+        }
+    );
+    const containerData = await containerRes.json();
+    if (containerData.error) throw new Error(`릴스 컨테이너 생성 실패: ${containerData.error.message}`);
+    finalCreationId = containerData.id;
+
+    await waitForContainerReady(finalCreationId, INSTAGRAM_TOKEN, "instagram");
+
+    const publishRes = await fetch(
+        `https://graph.instagram.com/${IG_API_VERSION}/${INSTAGRAM_ID}/media_publish`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                creation_id: finalCreationId,
+                access_token: INSTAGRAM_TOKEN,
+            }),
+        }
+    );
+
+    const publishData = await publishRes.json();
+    if (publishData.error) throw new Error(`인스타그램 릴스 게시 실패: ${publishData.error.message}`);
+    return publishData.id;
+}
+
