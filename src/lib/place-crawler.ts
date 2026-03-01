@@ -187,8 +187,8 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
             keywords {
               name
             }
-            visitorReviewsTotal
-            visitorReviewsScore
+            visitorReviewCount
+            visitorReviewScore
           }
         }
       }
@@ -232,8 +232,8 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
         if (p.description || p.desc) info.description = p.description || p.desc;
         if (p.phone || p.virtualPhone) info.phone = p.phone || p.virtualPhone;
         if (p.businessHours) info.businessHours = p.businessHours;
-        if (p.visitorReviewsTotal !== undefined) info.reviewCount = p.visitorReviewsTotal;
-        if (p.visitorReviewsScore !== undefined) info.reviewScore = p.visitorReviewsScore;
+        if (p.visitorReviewCount !== undefined) info.reviewCount = p.visitorReviewCount;
+        if (p.visitorReviewScore !== undefined) info.reviewScore = p.visitorReviewScore;
 
         const baseTags = Array.isArray(p.tags) ? p.tags : [];
         const kds = Array.isArray(p.keywords) ? p.keywords : [];
@@ -285,13 +285,16 @@ async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> 
         const apollo = JSON.parse(match[1]);
         const info: Partial<PlaceInfo> = {};
 
-        // 1. 기본 정보 (PlaceDetailBase 또는 Place)
-        const place = Object.values(apollo).find((v: any) => v.__typename === 'PlaceDetailBase' || v.__typename === 'Place' || v.__typename === 'Restaurant') as any;
+        // 1. 기본 정보 (Place, Restaurant 등 다양한 타입이 가능하므로 필드 기반 검색 추가)
+        let place = Object.values(apollo).find((v: any) => v.__typename === 'PlaceDetailBase' || v.__typename === 'Place' || v.__typename === 'Restaurant') as any;
+        if (!place) {
+            place = Object.values(apollo).find((v: any) => v.name && (v.address || v.roadAddress)) as any;
+        }
 
         if (place) {
             info.name = place.name;
-            info.address = place.address;
-            info.roadAddress = place.roadAddress;
+            info.address = place.address || place.roadAddress || '';
+            info.roadAddress = place.roadAddress || place.address || '';
             info.phone = place.phone || place.virtualPhone;
             info.category = place.category;
             info.description = place.description;
@@ -302,7 +305,28 @@ async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> 
             // 추가 키워드 탐색 (분위기/서비스 관련)
             const placeKeywords = deepSearchByTypename(apollo, 'PlaceReviewKeyword');
             const visitorKeywords = deepSearchByTypename(apollo, 'VisitorReviewKeyword');
-            const allKeywords = [...placeKeywords, ...visitorKeywords].map(k => k.name).filter(Boolean);
+            const otherKeywords = deepSearchByTypename(apollo, 'ReviewKeywordItem') || deepSearchByTypename(apollo, 'Keyword');
+
+            // GraphQL / Apollo 상태에서 테마나 키워드 항목이 label 또는 item.name, text 등의 필드에 나뉨
+            const allKeywords = [...placeKeywords, ...visitorKeywords, ...otherKeywords]
+                .map(k => k.name || k.keyword || k.text || k.label || k.item?.name)
+                .filter(Boolean)
+                .filter(k => typeof k === 'string'); // 객체 제외 필터링
+
+            // visitorReviewStats의 tell/theme 구조가 Apollo State root에 있을 수 있음
+            const reviewStats = Object.values(apollo).filter((v: any) => v.tells || (v.analysis && v.analysis.themes));
+            reviewStats.forEach((stat: any) => {
+                const tells = stat.tells || [];
+                tells.forEach((t: any) => {
+                    const kv = t.item?.name || t.text || t.label;
+                    if (kv) allKeywords.push(kv);
+                });
+                const themes = stat.analysis?.themes || [];
+                themes.forEach((t: any) => {
+                    const kv = t.label || t.item?.name || t.text;
+                    if (kv) allKeywords.push(kv);
+                });
+            });
 
             if (allKeywords.length > 0) {
                 info.tags = Array.from(new Set([...(info.tags || []), ...allKeywords]));
@@ -315,19 +339,19 @@ async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> 
         }
 
         // 2. 영업 시간 (Recursive Search)
-        const workingHours = deepSearchByTypename(apollo, 'WorkingHoursInfo');
+        const workingHours = [...deepSearchByTypename(apollo, 'WorkingHoursInfo'), ...deepSearchByTypename(apollo, 'BizHour')];
         if (workingHours.length > 0) {
             info.businessHours = workingHours.map(h => {
-                const day = h.day || '';
-                const start = h.businessHours?.start || '';
-                const end = h.businessHours?.end || '';
+                const day = h.day || h.dayName || '';
+                const start = h.businessHours?.start || h.startTime || '';
+                const end = h.businessHours?.end || h.endTime || '';
                 const breakTime = (h.breakHours && h.breakHours[0]) ? ` (브레이크 ${h.breakHours[0].start}~${h.breakHours[0].end})` : '';
                 return `${day}: ${start}~${end}${breakTime}`;
             }).filter(s => s.length > 5).join('\n');
         }
 
         // 3. 메뉴 (Recursive Search)
-        const menus = deepSearchByTypename(apollo, 'Menu');
+        const menus = [...deepSearchByTypename(apollo, 'Menu'), ...deepSearchByTypename(apollo, 'MenuItem'), ...deepSearchByTypename(apollo, 'PlaceMenuItem')];
         if (menus.length > 0) {
             // ID 또는 이름 중복 제거
             const seen = new Set();
@@ -339,8 +363,8 @@ async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> 
             }).map(m => ({
                 name: m.name || m.menuName,
                 price: m.price || '',
-                description: m.description,
-                imageUrl: m.images?.[0] || m.image
+                description: m.description || m.desc,
+                imageUrl: m.images?.[0] || m.image || m.imageUrl
             }));
         }
 
