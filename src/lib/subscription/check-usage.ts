@@ -54,7 +54,7 @@ export async function checkAIGenerationLimit(userId: string) {
 /**
  * 플랫폼별 발행 제한 체크
  */
-export async function checkPublishLimit(userId: string, platform: 'instagram' | 'threads' | 'blog') {
+export async function checkPublishLimit(userId: string, platform: 'instagram' | 'threads') {
     const supabase = await createClient();
 
     const { data: subscription } = await supabase
@@ -103,19 +103,8 @@ export async function checkPublishLimit(userId: string, platform: 'instagram' | 
             await supabase.from("daily_publish_usage").upsert(updateData, { onConflict: 'user_id,date' });
 
             return { allowed: true };
-        } else if (platform === 'blog') {
-            // 무료 체험: 블로그 발행 비활성화 (프로 유도)
-            return {
-                allowed: false,
-                reason: 'pro_only',
-                message: '블로그 자동 발행은 프로 플랜에서만 가능합니다. 프로 플랜에서 월 무제한 발행을 시작해보세요!'
-            };
         }
     } else if (plan === 'basic') {
-        if (platform === 'blog') {
-            return { allowed: false, message: '블로그 발행은 프로 플랜에서 가능합니다.' };
-        }
-        // 인스타그램, 스레드: 30건
         return await checkMonthlyUsage(supabase, userId, subscription, platform, 30);
     } else if (plan === 'pro') {
         // 프로: 모든 플랫폼 30건
@@ -154,7 +143,7 @@ async function checkMonthlyUsage(supabase: any, userId: string, subscription: an
 /**
  * 특정 기능(블로그, 캘린더 등) 접근 권한 체크
  */
-export async function checkFeatureAccess(userId: string, feature: 'blog' | 'marketing_calendar' | 'extended_persona' | 'custom_persona') {
+export async function checkFeatureAccess(userId: string, feature: 'marketing_calendar' | 'extended_persona' | 'custom_persona') {
     const supabase = await createClient();
 
     const { data: subscription } = await supabase
@@ -167,11 +156,11 @@ export async function checkFeatureAccess(userId: string, feature: 'blog' | 'mark
         return { allowed: true };
     }
 
-    const proOnlyFeatures = ['blog', 'marketing_calendar', 'extended_persona', 'custom_persona'];
+    const proOnlyFeatures = ['marketing_calendar', 'extended_persona', 'custom_persona'];
     if (proOnlyFeatures.includes(feature) && (!subscription || subscription.plan === 'basic' || subscription.plan === 'free_trial' || subscription.plan === 'trial')) {
         if (subscription?.plan === 'basic') {
             const featureNames: Record<string, string> = {
-                blog: '블로그 발행',
+
                 marketing_calendar: '마케팅 캘린더',
                 extended_persona: '확장 페르소나',
                 custom_persona: '커스텀 페르소나'

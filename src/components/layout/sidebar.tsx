@@ -26,7 +26,6 @@ const navItems = [
     { href: "/dashboard", label: "대시보드", icon: LayoutDashboard },
     { href: "/store", label: "가게 관리", icon: Store },
     { href: "/calendar", label: "마케팅 캘린더", icon: CalendarDays, proOnly: true, trigger: 'calendar' as const },
-    { href: "/automation", label: "블로그 자동 발행", icon: Wand2, proOnly: true, trigger: 'blog' as const },
     { href: "/content/create", label: "SNS 콘텐츠 생성", icon: Sparkles },
     { href: "/content/scheduled", label: "예약 발행 목록", icon: CalendarClock },
     { href: "/content/history", label: "생성 기록", icon: History },
@@ -38,7 +37,7 @@ export function Sidebar() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const { subscription, checkAccess } = useSubscription();
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-    const [upgradeTrigger, setUpgradeTrigger] = useState<'persona' | 'blog' | 'calendar' | 'deep_analysis' | 'trial_expired' | 'limit_reached'>('blog');
+    const [upgradeTrigger, setUpgradeTrigger] = useState<'persona' | 'calendar' | 'deep_analysis' | 'trial_expired' | 'limit_reached'>('persona');
 
     const planLabel = subscription?.plan === 'pro' ? 'Pro' : subscription?.plan === 'admin' ? 'Admin' : 'Basic';
     const isPro = subscription?.plan === 'pro' || subscription?.plan === 'admin';
@@ -120,7 +119,7 @@ export function Sidebar() {
                                     key={item.href}
                                     onClick={() => {
                                         setMobileOpen(false);
-                                        setUpgradeTrigger(item.trigger || 'blog');
+                                        setUpgradeTrigger(item.trigger || 'persona');
                                         setShowUpgradeModal(true);
                                     }}
                                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-400 hover:bg-gray-50 transition-all duration-200"
@@ -165,7 +164,7 @@ export function Sidebar() {
                             <span className="text-xs font-bold uppercase tracking-wider">Upgrade to Pro</span>
                         </div>
                         <p className="text-[11px] text-indigo-100 leading-relaxed mb-3">
-                            블로그 자동 발행과 더 정교한 <br />마케팅 기능을 만나보세요.
+                            더 정교한 <br />마케팅 기능을 만나보세요.
                         </p>
                         <Link
                             href="/pricing"

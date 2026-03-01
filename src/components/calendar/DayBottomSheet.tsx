@@ -72,7 +72,7 @@ export default function DayBottomSheet({ isOpen, onClose, day, month, year, cont
                                 {contents.map((c, i) => {
                                     const style = getStatusStyle(c.status);
                                     return (
-                                        <Link key={i} href={c.platform === 'blog' ? `/automation?reuseId=${c.id}` : `/content/create?reuseId=${c.id}`} className="block">
+                                        <Link key={i} href={`/content/create?reuseId=${c.id}`} className="block">
                                             <div className={`p-4 rounded-3xl border ${style.border} ${style.bg} flex items-center justify-between shadow-sm`}>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-2xl">{style.icon}</div>
@@ -116,12 +116,6 @@ export default function DayBottomSheet({ isOpen, onClose, day, month, year, cont
                 {/* Footer Buttons */}
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white to-transparent pt-10">
                     <div className="flex gap-3">
-                        <Link href={`/automation?topic=${encodeURIComponent(recommendation.topic)}&date=${year}-${month + 1}-${day}`} className="flex-1">
-                            <Button className="w-full h-14 bg-white border-2 border-gray-100 text-gray-700 hover:bg-gray-50 rounded-2xl font-black flex items-center justify-center gap-2" variant="secondary">
-                                <BookOpen size={20} />
-                                블로그 글쓰기
-                            </Button>
-                        </Link>
                         <Link href={`/content/create?topic=${encodeURIComponent(recommendation.topic)}&date=${year}-${month + 1}-${day}`} className="flex-1">
                             <Button className="w-full h-14 bg-primary-500 hover:bg-primary-600 text-white rounded-2xl font-black shadow-lg shadow-primary-500/20 flex items-center justify-center gap-2">
                                 <Share2 size={20} />

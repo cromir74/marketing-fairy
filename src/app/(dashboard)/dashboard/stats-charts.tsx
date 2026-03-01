@@ -27,7 +27,6 @@ export function StatsCharts({ data: rawData, barData: rawBarData }: { data?: any
     ];
 
     const barData = rawBarData && rawBarData.length > 0 ? rawBarData : [
-        { name: '블로그', count: 0, color: '#10b981' },
         { name: '인스타', count: 0, color: '#ec4899' },
         { name: '스레드', count: 0, color: '#000000' }
     ];
@@ -51,14 +50,7 @@ export function StatsCharts({ data: rawData, barData: rawBarData }: { data?: any
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                             />
                             <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
-                            <Line
-                                name="블로그"
-                                type="monotone"
-                                dataKey="blog"
-                                stroke="#10b981"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#10b981' }}
-                            />
+
                             <Line
                                 name="인스타"
                                 type="monotone"
@@ -97,8 +89,8 @@ export function StatsCharts({ data: rawData, barData: rawBarData }: { data?: any
                                 contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                             />
                             <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                                {[0, 1, 2].map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : index === 1 ? '#ec4899' : '#000000'} />
+                                {[0, 1].map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={index === 0 ? '#ec4899' : '#000000'} />
                                 ))}
                             </Bar>
                         </BarChart>

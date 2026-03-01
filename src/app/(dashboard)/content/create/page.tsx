@@ -71,10 +71,10 @@ function ContentCreatePageContent() {
     const { subscription, usage, dailyPublishUsage, refresh: refreshSubscription, checkAccess } = useSubscription();
     const [showUpgradePopup, setShowUpgradePopup] = useState(false);
     const [pendingFeature, setPendingFeature] = useState("");
-    const [upgradeTrigger, setUpgradeTrigger] = useState<'persona' | 'blog' | 'calendar' | 'deep_analysis' | 'trial_expired' | 'limit_reached'>('persona');
+    const [upgradeTrigger, setUpgradeTrigger] = useState<'persona' | 'calendar' | 'deep_analysis' | 'trial_expired' | 'limit_reached'>('persona');
 
     const isTrial = subscription?.plan === "trial" || subscription?.plan === "free_trial";
-    const isTrialPublishLimitReached = isTrial && platform !== "blog" && dailyPublishUsage && (
+    const isTrialPublishLimitReached = isTrial && dailyPublishUsage && (
         (platform === "instagram" && dailyPublishUsage.instagram >= 1) ||
         (platform === "threads" && dailyPublishUsage.threads >= 1)
     );
@@ -105,10 +105,6 @@ function ContentCreatePageContent() {
                         .single();
 
                     if (oldContent) {
-                        if (oldContent.platform === 'blog') {
-                            window.location.href = `/automation?reuseId=${reuseId}`;
-                            return;
-                        }
                         setTopic(oldContent.topic);
                         setGeneratedContent(oldContent.content);
                         setPlatform(oldContent.platform);
@@ -321,8 +317,8 @@ function ContentCreatePageContent() {
 
             if (!res.ok) {
                 if (data.reason === "limit_reached" || data.reason === "trial_expired" || data.reason === "plan_upgrade_needed") {
-                    setPendingFeature(platform === "blog" ? "블로그 발행" : "SNS 발행");
-                    setUpgradeTrigger(data.reason === "trial_expired" ? 'trial_expired' : data.reason === "limit_reached" ? 'limit_reached' : 'blog');
+                    setPendingFeature("SNS 발행");
+                    setUpgradeTrigger(data.reason === "trial_expired" ? 'trial_expired' : data.reason === "limit_reached" ? 'limit_reached' : 'calendar');
                     setShowUpgradePopup(true);
                 } else if (res.status === 403) {
                     alert(data.error || "오늘의 발행을 완료했어요. 내일 다시 시도해주세요.");
@@ -702,36 +698,7 @@ function ContentCreatePageContent() {
                             ))}
                         </div>
 
-                        {platform === "blog" && isTrial && (
-                            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 animate-in fade-in slide-in-from-top-2 duration-500">
-                                <div className="flex items-start gap-3">
-                                    <div className="p-2 bg-amber-100 rounded-xl">
-                                        <Crown className="h-5 w-5 text-amber-600" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="text-sm font-bold text-amber-900 mb-1">블로그 자동 발행은 프로 전용 기능입니다</h4>
-                                        <p className="text-xs text-amber-700 leading-relaxed mb-3">
-                                            체험판에서는 블로그 <strong>내용 생성</strong>까지만 가능하며, 실제 발행은 프로 플랜에서 무제한으로 이용하실 수 있습니다.
-                                        </p>
 
-                                        {/* Pro Preview Video Placeholder */}
-                                        <div className="aspect-video w-full bg-gray-900 rounded-xl overflow-hidden relative group cursor-pointer" onClick={() => setShowUpgradePopup(true)}>
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 group-hover:bg-black/20 transition-all">
-                                                <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 group-hover:scale-110 transition-transform">
-                                                    <Info className="h-6 w-6 text-white" />
-                                                </div>
-                                                <p className="text-[10px] text-white/80 font-bold mt-2">프로 기능 사용 영상 확인하기</p>
-                                            </div>
-                                            <img
-                                                src="https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=2070&auto=format&fit=crop"
-                                                alt="Pro Preview"
-                                                className="w-full h-full object-cover opacity-60"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </Card>
 
                     {/* 주제 입력 */}

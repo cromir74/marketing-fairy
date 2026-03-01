@@ -472,7 +472,7 @@ export default function StorePage() {
                                 id="one_liner" name="one_liner" label="가게 한 줄 소개" placeholder="예: 연남동 골목에 숨은 수제 디저트 맛집"
                                 value={formData.one_liner} onChange={handleInputChange}
                             />
-                            <p className="text-[11px] text-gray-500 mt-1 pl-1">인스타그램 소개글이나 블로그 제목에 활용돼요</p>
+                            <p className="text-[11px] text-gray-500 mt-1 pl-1">인스타그램이나 스레드 글 제목에 활용돼요</p>
                         </div>
 
                         <div>

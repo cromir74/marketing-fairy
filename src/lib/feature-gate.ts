@@ -1,5 +1,4 @@
 export const PRO_ONLY_FEATURES = [
-    'blog_publish',           // 네이버 블로그 발행
     'marketing_calendar',     // 마케팅 캘린더
     'persona_select',         // 페르소나 선택 (모두 제외 전체)
     'place_deep_analysis',    // 플레이스 심화 분석 (리뷰키워드, 경쟁비교, 주간전략)

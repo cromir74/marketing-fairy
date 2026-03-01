@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
         // 4. Gemini API 호출
         const prompt = `당신은 센스 있는 소상공인 마케팅 전문가입니다.
-다음 가게 정보를 바탕으로 ${year}년 ${month + 1}월(1일부터 ${lastDate}일까지)의 일별 마케팅(SNS/블로그) 주제를 추천해주세요.
+다음 가게 정보를 바탕으로 ${year}년 ${month + 1}월(1일부터 ${lastDate}일까지)의 일별 마케팅(SNS) 주제를 추천해주세요.
 
 [가게 정보]
 - 가게명: ${storeName}

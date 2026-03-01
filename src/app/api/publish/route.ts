@@ -51,8 +51,6 @@ export async function POST(request: NextRequest) {
             resultId = await publishToInstagram(imageUrls, content);
         } else if (platform === "threads") {
             resultId = await publishToThreads(imageUrls, content);
-        } else if (platform === "blog") {
-            return NextResponse.json({ error: "네이버 블로그 자동 게시 기능은 곧 추가될 예정입니다." }, { status: 501 });
         } else {
             return NextResponse.json({ error: "지원하지 않는 플랫폼입니다." }, { status: 400 });
         }

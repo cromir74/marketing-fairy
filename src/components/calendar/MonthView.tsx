@@ -50,8 +50,7 @@ export default function MonthView({ year, month, contents, store, aiRecommendati
 
     const platformShort: Record<string, string> = {
         instagram: "인스타",
-        threads: "스레드",
-        blog: "블로그"
+        threads: "스레드"
     };
 
     return (
@@ -109,7 +108,7 @@ export default function MonthView({ year, month, contents, store, aiRecommendati
                                     {dayContents.map((c, i) => {
                                         const style = getStatusStyle(c.status);
                                         return (
-                                            <Link key={i} href={c.platform === 'blog' ? `/automation?reuseId=${c.id}` : `/content/create?reuseId=${c.id}`} className="block">
+                                            <Link key={i} href={`/content/create?reuseId=${c.id}`} className="block">
                                                 <div className={`px-1.5 py-0.5 rounded border ${style.bg} ${style.border} ${style.text} text-[10px] font-bold truncate flex items-center gap-1 hover:opacity-80 transition-opacity`}>
                                                     <span>{style.icon}</span>
                                                     [{platformShort[c.platform]}] {c.topic}
@@ -132,11 +131,8 @@ export default function MonthView({ year, month, contents, store, aiRecommendati
                                                 {recommendation.topic}
                                             </p>
                                             <div className="flex items-center gap-1">
-                                                <Link href={`/automation?topic=${encodeURIComponent(recommendation.topic)}&date=${year}-${month + 1}-${day}`} className="flex-1">
-                                                    <button className="w-full px-1 py-0.5 bg-white border border-gray-200 text-[8px] font-bold rounded hover:bg-gray-50">블로그</button>
-                                                </Link>
                                                 <Link href={`/content/create?topic=${encodeURIComponent(recommendation.topic)}&date=${year}-${month + 1}-${day}`} className="flex-1">
-                                                    <button className="w-full px-1 py-0.5 bg-white border border-gray-200 text-[8px] font-bold rounded hover:bg-gray-50">SNS</button>
+                                                    <button className="w-full px-1 py-0.5 bg-white border border-gray-200 text-[8px] font-bold rounded hover:bg-gray-50">SNS 만들기</button>
                                                 </Link>
                                             </div>
                                         </div>

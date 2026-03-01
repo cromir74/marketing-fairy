@@ -45,7 +45,7 @@ export default function TermsOfService() {
                             <li>회사는 회원에게 다음과 같은 서비스를 제공합니다.
                                 <ul className="list-disc pl-5 mt-2">
                                     <li>AI 마케팅 콘텐츠 생성 서비스</li>
-                                    <li>소셜 미디어(인스타그램, 스레드, 네이버 블로그 등) 자동 발행 연동 서비스</li>
+                                    <li>소셜 미디어(인스타그램, 스레드 등) 자동 발행 연동 서비스</li>
                                     <li>기타 회사가 추가 개발하거나 다른 회사와의 제휴계약 등을 통해 회원에게 제공하는 일체의 서비스</li>
                                 </ul>
                             </li>

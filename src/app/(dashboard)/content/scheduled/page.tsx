@@ -52,8 +52,7 @@ export default function ScheduledPage() {
 
     const platformLabels: Record<string, string> = {
         instagram: "📸 인스타그램",
-        threads: "🧵 스레드",
-        blog: "📝 블로그",
+        threads: "🧵 스레드"
     };
 
     if (loading) {

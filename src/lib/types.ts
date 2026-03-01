@@ -15,7 +15,7 @@ export interface Content {
     id: string;
     user_id: string;
     store_id: string;
-    platform: "instagram" | "threads" | "blog";
+    platform: "instagram" | "threads";
     topic: string;
     content: string;
     image_url: string | null;

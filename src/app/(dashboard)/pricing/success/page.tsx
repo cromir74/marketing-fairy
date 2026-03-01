@@ -209,7 +209,7 @@ function PaymentSuccessContent() {
                     <ul className="text-sm text-gray-600 text-left space-y-2">
                         <li className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-indigo-400"></div>
-                            {plan === "pro" ? "네이버 블로그 자동 발행 활성화" : "인스타그램/스레드 자동 발행 활성화"}
+                            {plan === "pro" ? "심층 플레이스 분석 활성화" : "인스타그램/스레드 자동 발행 활성화"}
                         </li>
                         <li className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-indigo-400"></div>

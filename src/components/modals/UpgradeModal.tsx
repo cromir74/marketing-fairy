@@ -16,14 +16,14 @@ import { useRouter } from "next/navigation";
 interface UpgradeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    trigger?: 'persona' | 'blog' | 'calendar' | 'deep_analysis' | 'trial_expired' | 'limit_reached';
+    trigger?: 'persona' | 'calendar' | 'deep_analysis' | 'trial_expired' | 'limit_reached';
     blockedFeature?: string;
 }
 
 export function UpgradeModal({
     isOpen,
     onClose,
-    trigger = 'blog',
+    trigger = 'calendar',
     blockedFeature
 }: UpgradeModalProps) {
     const router = useRouter();
@@ -31,7 +31,6 @@ export function UpgradeModal({
     const getMessage = () => {
         switch (trigger) {
             case 'persona': return "페르소나 마케팅은 Pro 전용이에요";
-            case 'blog': return "블로그 발행은 Pro에서 가능해요";
             case 'calendar': return "마케팅 캘린더로 전략적 발행하세요";
             case 'deep_analysis': return "심화 분석으로 경쟁력을 높이세요";
             case 'trial_expired': return "무료 체험이 종료되었어요";
@@ -58,7 +57,7 @@ export function UpgradeModal({
                 <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 my-2 border border-indigo-100 space-y-3">
                     <div className="flex items-center gap-3 text-sm font-bold text-indigo-900">
                         <CheckCircle2 className="h-5 w-5 text-indigo-500 fill-indigo-100" />
-                        <span>블로그 + 인스타 + 스레드 월 90건 발행</span>
+                        <span>인스타 + 스레드 월 60건 발행</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm font-bold text-indigo-900">
                         <CheckCircle2 className="h-5 w-5 text-indigo-500 fill-indigo-100" />

@@ -100,7 +100,6 @@ export async function GET(request: NextRequest) {
                     period_end: newPeriodEnd.toISOString(),
                     instagram_count: 0,
                     threads_count: 0,
-                    blog_count: 0,
                 }, { onConflict: 'user_id,period_start' });
 
                 results.success++;

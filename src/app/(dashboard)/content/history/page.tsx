@@ -30,8 +30,7 @@ export default async function HistoryPage() {
 
     const platformLabels: Record<string, string> = {
         instagram: "📸 인스타그램",
-        threads: "🧵 스레드",
-        blog: "📝 블로그",
+        threads: "🧵 스레드"
     };
 
     return (
@@ -78,7 +77,7 @@ export default async function HistoryPage() {
                                 </pre>
                             </div>
                             <div className="flex justify-end">
-                                <a href={c.platform === 'blog' ? `/automation?reuseId=${c.id}` : `/content/create?reuseId=${c.id}`}>
+                                <a href={`/content/create?reuseId=${c.id}`}>
                                     <button className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1 group">
                                         <RefreshCw className="h-3 w-3 transition-transform group-hover:rotate-180" />
                                         이 글로 다시 발행하기

@@ -143,7 +143,6 @@ export default function PricingPage() {
                         <FeatureItem text="스레드 자동 발행 (월 30건)" />
                         <FeatureItem text="네이버 플레이스 기본 분석" />
                         <FeatureItem text="예약 발행 및 법적 규제 검토" />
-                        <FeatureItem text="네이버 블로그 자동 발행" excluded />
                     </ul>
 
                     <button
@@ -197,7 +196,6 @@ export default function PricingPage() {
 
                     <ul className="space-y-3.5 sm:space-y-5 mb-8 sm:mb-10 flex-grow font-medium text-gray-900">
                         <FeatureItem text="베이직의 모든 기능 포함" highlight />
-                        <FeatureItem text="네이버 블로그 자동 발행 (월 30건)" highlight />
                         <FeatureItem text="마케팅 캘린더 (시즌/요일 전략)" highlight />
                         <FeatureItem text="페르소나 마케팅 전체 (기본+확장)" highlight />
                         <FeatureItem text="네이버 플레이스 심화 분석" highlight />

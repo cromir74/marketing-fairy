@@ -142,7 +142,7 @@ export default function WeekView({ year, month, weekStart, contents, store, aiRe
                         {dayContents.map((c, i) => {
                             const style = getStatusStyle(c.status);
                             return (
-                                <Link key={i} href={c.platform === 'blog' ? `/automation?reuseId=${c.id}` : `/content/create?reuseId=${c.id}`} className="block">
+                                <Link key={i} href={`/content/create?reuseId=${c.id}`} className="block">
                                     <div className={`p-3 rounded-2xl border ${style.border} ${style.bg} flex items-center justify-between`}>
                                         <div className="flex items-center gap-3">
                                             <div className="text-xl">{style.icon}</div>
@@ -169,9 +169,6 @@ export default function WeekView({ year, month, weekStart, contents, store, aiRe
                             </p>
                         </div>
                         <div className="flex gap-2">
-                            <Link href={`/automation?topic=${encodeURIComponent(recommendation.topic)}&date=${year}-${month + 1}-${selectedDay}`} className="flex-1">
-                                <Button className="w-full bg-white border-gray-200 text-gray-700 hover:bg-gray-50 font-bold rounded-2xl" variant="secondary">블로그</Button>
-                            </Link>
                             <Link href={`/content/create?topic=${encodeURIComponent(recommendation.topic)}&date=${year}-${month + 1}-${selectedDay}`} className="flex-1">
                                 <Button className="w-full bg-primary-500 hover:bg-primary-600 font-bold rounded-2xl shadow-md shadow-primary-500/20 text-white cursor-pointer">SNS 글쓰기</Button>
                             </Link>

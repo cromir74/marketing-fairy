@@ -6,7 +6,6 @@ import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Store, History, ArrowRight, Wand2, TrendingUp, Eye, MessageSquare, Heart, Calendar, RefreshCw } from "lucide-react";
 import { StatsCharts } from "./stats-charts";
-import { RefreshButton } from "./refresh-button";
 
 export default async function DashboardPage() {
     const supabase = await createClient();
@@ -45,7 +44,6 @@ export default async function DashboardPage() {
 
     // 플랫폼별 발행 비중 계산
     const platformStats = [
-        { name: '블로그', count: allContents?.filter(c => c.platform === 'blog').length || 0, color: '#10b981' },
         { name: '인스타', count: allContents?.filter(c => c.platform === 'instagram').length || 0, color: '#ec4899' },
         { name: '스레드', count: allContents?.filter(c => c.platform === 'threads').length || 0, color: '#000000' }
     ];
@@ -61,7 +59,6 @@ export default async function DashboardPage() {
 
         return {
             name: dayName,
-            blog: filterByDay('blog'),
             instagram: filterByDay('instagram'),
             threads: filterByDay('threads')
         };
@@ -70,7 +67,6 @@ export default async function DashboardPage() {
     const platformIcons: Record<string, string> = {
         instagram: "📸",
         threads: "🧵",
-        blog: "📝",
     };
 
     return (
@@ -124,9 +120,6 @@ export default async function DashboardPage() {
             {store ? (
                 <div className="space-y-4">
                     <StatsCharts data={weeklyData} barData={platformStats} />
-                    <div className="flex justify-end">
-                        <RefreshButton />
-                    </div>
                 </div>
             ) : (
                 <Card className="p-8 border-dashed flex flex-col items-center justify-center text-center bg-gray-50/50">
@@ -158,7 +151,7 @@ export default async function DashboardPage() {
                         지금 바로 추천 주제로 콘텐츠를 생성하고 매출을 올려보세요!
                     </p>
                     <div className="flex flex-wrap gap-4">
-                        <Link href={`/automation?topic=${encodeURIComponent(store?.category?.includes("카페") ? "겨울 카페 감성 메뉴" : "오늘의 추천 메뉴")}`}>
+                        <Link href={`/content/create?topic=${encodeURIComponent(store?.category?.includes("카페") ? "겨울 카페 감성 메뉴" : "오늘의 추천 메뉴")}`}>
                             <Button className="bg-white text-gray-900 hover:bg-gray-100 font-bold border-none">
                                 추천 주제로 글쓰기
                                 <ArrowRight className="h-4 w-4 ml-2" />
@@ -175,19 +168,7 @@ export default async function DashboardPage() {
 
             {/* 퀵 액션 카드 */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Link href="/automation" className="block h-full">
-                    <Card className="group cursor-pointer hover:border-primary-200 h-full">
-                        <div className="flex items-center gap-3 h-full">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
-                                <Wand2 className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0">
-                                <CardTitle className="text-base truncate">블로그 자동 발행</CardTitle>
-                                <CardDescription className="text-xs line-clamp-1">네이버 블로그 자동 포스팅</CardDescription>
-                            </div>
-                        </div>
-                    </Card>
-                </Link>
+
 
                 <Link href="/content/create" className="block h-full">
                     <Card className="group cursor-pointer hover:border-primary-200 h-full">

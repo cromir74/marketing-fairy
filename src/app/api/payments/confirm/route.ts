@@ -87,7 +87,6 @@ export async function POST(request: NextRequest) {
             period_end: periodEnd.toISOString(),
             instagram_count: 0,
             threads_count: 0,
-            blog_count: 0,
         }, { onConflict: 'user_id,period_start' });
 
         // 6. 얼리버드 카운터 업데이트

@@ -49,7 +49,7 @@ export function UpgradePopup({
                     <p className="text-xs font-bold text-gray-500 mb-2">프로 요금제 혜택:</p>
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        <span>네이버 블로그 자동 발행 (월 30건)</span>
+                        <span>심층 플레이스 분석 전략</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-700">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />

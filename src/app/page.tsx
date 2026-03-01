@@ -178,7 +178,7 @@ export default function LandingPage() {
                     <span className="text-primary-500">요정에게 맡기세요</span>
                 </h1>
                 <p className="text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
-                    인스타그램, 스레드, 블로그 마케팅 글을 AI가 알아서 써줍니다.<br />
+                    인스타그램, 스레드 마케팅 글을 AI가 알아서 써줍니다.<br />
                     매달 130만원 통째로 나갔던 대행사 비용, 이제 월 23만원으로 해결하세요.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -198,13 +198,11 @@ export default function LandingPage() {
                     <div className="flex animate-marquee whitespace-nowrap min-w-full shrink-0 items-center justify-around gap-12 px-8">
                         <MarqueeItem icon={<Instagram className="text-pink-600 w-5 h-5" />} text="INSTAGRAM" />
                         <MarqueeItem icon={<MessageSquare className="text-gray-900 w-5 h-5" />} text="THREADS" />
-                        <MarqueeItem icon={<Layout className="text-green-500 w-5 h-5" />} text="NAVER BLOG" />
                         <MarqueeItem icon={<Brain className="text-purple-500 w-5 h-5" />} text="AI ENGINE" />
                     </div>
                     <div className="flex animate-marquee whitespace-nowrap min-w-full shrink-0 items-center justify-around gap-12 px-8" aria-hidden>
                         <MarqueeItem icon={<Instagram className="text-pink-600 w-5 h-5" />} text="INSTAGRAM" />
                         <MarqueeItem icon={<MessageSquare className="text-gray-900 w-5 h-5" />} text="THREADS" />
-                        <MarqueeItem icon={<Layout className="text-green-500 w-5 h-5" />} text="NAVER BLOG" />
                         <MarqueeItem icon={<Brain className="text-purple-500 w-5 h-5" />} text="AI ENGINE" />
                     </div>
                 </div>
@@ -235,7 +233,7 @@ export default function LandingPage() {
                             <div className="bg-gray-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black mb-6 shadow-sm">02</div>
                             <Sparkles className="text-purple-500 w-8 h-8 mb-4" />
                             <h3 className="text-xl font-bold text-gray-900 mb-2 font-display">AI가 맞춤 글 생성</h3>
-                            <p className="text-gray-500 font-medium text-sm leading-relaxed">업종, 메뉴, 분위기에 맞는 마케팅 글을 인스타·스레드·블로그용으로 각각 생성합니다.</p>
+                            <p className="text-gray-500 font-medium text-sm leading-relaxed">업종, 메뉴, 분위기에 맞는 마케팅 글을 인스타·스레드용으로 각각 생성합니다.</p>
                         </div>
 
                         {/* Step 3 */}
@@ -243,7 +241,7 @@ export default function LandingPage() {
                             <div className="bg-gray-900 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black mb-6 shadow-sm">03</div>
                             <Send className="text-blue-500 w-8 h-8 mb-4" />
                             <h3 className="text-xl font-bold text-gray-900 mb-2 font-display">채널별 자동 발행</h3>
-                            <p className="text-gray-500 font-medium text-sm leading-relaxed">인스타그램, 스레드, 블로그 각각의 발행 버튼을 누르면 해당 채널에 바로 업로드됩니다.</p>
+                            <p className="text-gray-500 font-medium text-sm leading-relaxed">인스타그램, 스레드 각각의 발행 버튼을 누르면 해당 채널에 바로 업로드됩니다.</p>
                         </div>
                     </div>
                 </div>
@@ -264,7 +262,7 @@ export default function LandingPage() {
                                 <Send className="w-6 h-6" />
                             </div>
                             <h3 className="text-2xl font-bold text-gray-900 mb-3 font-display">클릭 한 번에 자동 발행</h3>
-                            <p className="text-gray-500 leading-relaxed font-medium">마음에 드는 문구를 골랐다면 '발행하기' 버튼만 누르세요. 인스타그램, 스레드, 네이버 블로그 3곳에 복사 붙여넣기 없이 즉시 업로드됩니다.</p>
+                            <p className="text-gray-500 leading-relaxed font-medium">마음에 드는 문구를 골랐다면 '발행하기' 버튼만 누르세요. 인스타그램, 스레드에 복사 붙여넣기 없이 즉시 업로드됩니다.</p>
                         </div>
                         {/* Minimal Mockup Graphic inside Bento */}
                         <div className="absolute right-0 bottom-0 top-1/2 translate-y-10 translate-x-10 md:translate-y-0 w-3/4 md:w-1/2 md:h-full pointer-events-none opacity-80 group-hover:opacity-100 group-hover:translate-x-4 transition-all duration-700">
@@ -274,7 +272,6 @@ export default function LandingPage() {
                                 <div className="w-4/6 h-4 bg-gray-200/50 rounded-md" />
                                 <div className="mt-4 flex gap-2">
                                     <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center"><Instagram className="w-4 h-4 text-pink-500" /></div>
-                                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center"><Layout className="w-4 h-4 text-green-500" /></div>
                                 </div>
                             </div>
                         </div>
@@ -397,10 +394,7 @@ export default function LandingPage() {
                             </div>
 
                             <ul className="space-y-6 flex-grow mb-8">
-                                <li className="flex justify-between items-center border-b border-dashed border-gray-200 pb-4">
-                                    <span className="text-gray-600 font-medium">블로그 운영 대행</span>
-                                    <span className="text-gray-900 font-bold">월 40~60만원</span>
-                                </li>
+
                                 <li className="flex justify-between items-center border-b border-dashed border-gray-200 pb-4">
                                     <span className="text-gray-600 font-medium">인스타그램 운영 대행</span>
                                     <span className="text-gray-900 font-bold">월 30~50만원</span>
@@ -424,10 +418,7 @@ export default function LandingPage() {
                             </div>
 
                             <ul className="space-y-6 flex-grow mb-8">
-                                <li className="flex justify-between items-center border-b border-dashed border-gray-200 pb-4">
-                                    <span className="text-gray-600 font-medium">블로그 자동 발행</span>
-                                    <span className="text-primary-600 font-bold">✅ 포함</span>
-                                </li>
+
                                 <li className="flex justify-between items-center border-b border-dashed border-gray-200 pb-4">
                                     <span className="text-gray-600 font-medium">인스타그램 자동 발행</span>
                                     <span className="text-primary-600 font-bold">✅ 포함</span>
@@ -498,7 +489,7 @@ export default function LandingPage() {
                             <FeatureItem text="스레드 자동 발행 (월 30건)" />
                             <FeatureItem text="네이버 플레이스 기본 분석" />
                             <FeatureItem text="예약 발행 및 법적 규제 검토" />
-                            <FeatureItem text="네이버 블로그 자동 발행" excluded />
+
                         </ul>
 
                         <Link href={user ? "/dashboard" : "/signup"} className="w-full flex justify-center items-center h-14 rounded-2xl bg-gray-50 border border-gray-200 text-gray-900 font-bold hover:bg-gray-100 transition-all">
@@ -549,7 +540,6 @@ export default function LandingPage() {
 
                         <ul className="space-y-3.5 sm:space-y-5 mb-8 sm:mb-10 flex-grow font-medium text-gray-900">
                             <FeatureItem text="베이직의 모든 기능 포함" highlight />
-                            <FeatureItem text="네이버 블로그 자동 발행 (월 30건)" highlight />
                             <FeatureItem text="마케팅 캘린더 (시즌/요일 전략)" highlight />
                             <FeatureItem text="페르소나 마케팅 전체 (기본+확장)" highlight />
                             <FeatureItem text="네이버 플레이스 심화 분석" highlight />
@@ -569,9 +559,8 @@ export default function LandingPage() {
                 </div>
                 <div className="space-y-4 reveal-on-scroll">
                     <FAQItem q="AI가 쓴 글이 어색하지 않나요?" a="마케팅요정은 특정 업종 메뉴 데이터 및 수만 건의 인기 게시글 패턴을 학습한 AI를 사용합니다. 일반적인 AI 봇의 딱딱한 말투가 아닌, 사람 냄새 나는 다양한 페르소나 스타일로 자연스럽게 작성됩니다." openByDefault />
-                    <FAQItem q="네이버 블로그에 정말 자동으로 올라가나요?" a="네, 글 생성 후 채널별로 각각 최적화된 발행 버튼을 누르면 복사/붙여넣기 없이 계정에 연동된 블로그, 인스타그램, 스레드에 즉시 업로드 됩니다." />
-                    <FAQItem q="블로그, 인스타 연동은 어떻게 하나요?" a="마이페이지에서 각 소셜 계정을 한 번만 로그인하여 연동해 두시면, 이후로는 마케팅요정 안에서 클릭 한 번으로 각 채널에 개별 발행이 가능합니다." />
-                    <FAQItem q="글 작성 개수에 제한이 있나요?" a="베이직은 인스타그램·스레드 각 월 30건 발행 가능합니다. 프로는 인스타그램·스레드 각 월 30건에 네이버 블로그 월 30건이 추가되어 총 월 90건 발행할 수 있어요." />
+                    <FAQItem q="계정 연동은 어떻게 하나요?" a="마이페이지에서 각 소셜 계정을 한 번만 로그인하여 연동해 두시면, 이후로는 마케팅요정 안에서 클릭 한 번으로 각 채널에 개별 발행이 가능합니다." />
+                    <FAQItem q="글 작성 개수에 제한이 있나요?" a="인스타그램과 스레드 채널별로 각각 월 30건씩 총 60건을 발행할 수 있습니다. (베이직/프로 공통)" />
                     <FAQItem q="무료 체험 기간이 끝나면 자동 결제되나요?" a="아니요! 가입 시 카드 등록 절차가 없기 때문에 7일 체험 종료 후 원치 않으시면 자동으로 결제되지 않습니다. 부담 없이 100% 기능을 테스트해 보세요." />
                 </div>
             </section>
