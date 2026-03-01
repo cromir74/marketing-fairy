@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Sparkles, Video, Play, Loader2, ImagePlus, X, Heart, Download, CheckCircle2 } from "lucide-react";
 import { uploadGeneratedImage } from "@/lib/supabase/storage";
-import { toast } from "sonner"; // If sonner is used, or alert
 
 const FREE_BGM_OPTIONS = [
     { value: "https://www.bensound.com/bensound-music/bensound-ukulele.mp3", label: "밝고 경쾌한 (업템포)" },
