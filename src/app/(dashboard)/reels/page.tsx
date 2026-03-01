@@ -10,6 +10,7 @@ import { uploadGeneratedImage } from "@/lib/supabase/storage";
 import { getCurrentWeather, getDayContext, WeatherInfo } from "@/lib/weather";
 
 const FREE_BGM_OPTIONS = [
+    { value: "", label: "없음 (음악 없이 제작)" },
     { value: "https://www.bensound.com/bensound-music/bensound-ukulele.mp3", label: "밝고 경쾌한 (업템포)" },
     { value: "https://www.bensound.com/bensound-music/bensound-acousticbreeze.mp3", label: "잔잔하고 감성적" },
     { value: "https://www.bensound.com/bensound-music/bensound-energy.mp3", label: "에너지 넘치는" },
