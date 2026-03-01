@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Sparkles, Video, Play, Loader2, ImagePlus, X, Heart, Download, CheckCircle2 } from "lucide-react";
+import { Sparkles, Video, Play, Loader2, ImagePlus, X, Heart, Download, CheckCircle2, Users, Cloud, Thermometer, Sun, CloudRain, Lightbulb, RefreshCw } from "lucide-react";
 import { uploadGeneratedImage } from "@/lib/supabase/storage";
+import { getCurrentWeather, getDayContext, WeatherInfo } from "@/lib/weather";
 
 const FREE_BGM_OPTIONS = [
     { value: "https://www.bensound.com/bensound-music/bensound-ukulele.mp3", label: "밝고 경쾌한 (업템포)" },
@@ -29,7 +30,11 @@ const COLORS = [
 export default function ReelsCreatePage() {
     const [store, setStore] = useState<any>(null);
     const [topic, setTopic] = useState("");
+    const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
     const [style, setStyle] = useState("메뉴 소개");
+    const [targetPersona, setTargetPersona] = useState<string>("모두");
+    const [weather, setWeather] = useState<WeatherInfo | null>(null);
+    const [dayContext, setDayContext] = useState<any>(null);
 
     const [images, setImages] = useState<{ preview: string; base64: string; mimeType: string }[]>([]);
     const [selectedBgm, setSelectedBgm] = useState(FREE_BGM_OPTIONS[0].value);
@@ -37,6 +42,8 @@ export default function ReelsCreatePage() {
     const [selectedColor, setSelectedColor] = useState(COLORS[0].value);
 
     const [isGenerating, setIsGenerating] = useState(false);
+    const [isSuggesting, setIsSuggesting] = useState(false);
+    const [isWeatherLoading, setIsWeatherLoading] = useState(false);
     const [isRendering, setIsRendering] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
@@ -52,7 +59,48 @@ export default function ReelsCreatePage() {
             }
         }
         fetchStore();
+
+        // 날씨 및 요일 정보 초기화
+        const ctx = getDayContext();
+        setDayContext(ctx);
     }, []);
+
+    // 매장 정보 로드 후 날씨 가져오기
+    useEffect(() => {
+        if (store?.location) {
+            async function fetchWeather() {
+                setIsWeatherLoading(true);
+                const w = await getCurrentWeather(store.location);
+                setWeather(w);
+                setIsWeatherLoading(false);
+            }
+            fetchWeather();
+        }
+    }, [store?.location]);
+
+    const handleSuggest = async () => {
+        if (!store) return;
+        setIsSuggesting(true);
+        try {
+            const storeInfo = {
+                name: store.name,
+                category: store.category,
+                location: store.location,
+                atmosphere: store.atmosphere,
+                mainProducts: store.main_products,
+            };
+            const res = await fetch("/api/content/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "suggest", storeInfo }),
+            });
+            const data = await res.json();
+            setSuggestedTopics(data.topics || []);
+        } catch {
+            setSuggestedTopics(["오늘의 인기 메뉴 소개", "방문 고객 감사 릴스", "가게 분위기 자랑하기"]);
+        }
+        setIsSuggesting(false);
+    };
 
     const uploadImagesToSupabase = async (): Promise<string[]> => {
         const publicUrls: string[] = [];
@@ -78,7 +126,17 @@ export default function ReelsCreatePage() {
             const scriptRes = await fetch("/api/reels/generate-script", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ storeInfo: store, topic, style })
+                body: JSON.stringify({
+                    storeInfo: store,
+                    topic,
+                    style,
+                    persona: targetPersona,
+                    context: {
+                        weather: weather?.condition || "맑음",
+                        dayName: dayContext?.dayName || "평일",
+                        timeContext: dayContext?.timeContext || "오늘"
+                    }
+                })
             });
             if (!scriptRes.ok) throw new Error("대본 생성 실패");
             const { slides } = await scriptRes.json();
@@ -201,7 +259,34 @@ export default function ReelsCreatePage() {
                         </div>
                         <Card className="p-6 space-y-5 shadow-sm hover:shadow-md transition-shadow">
                             <div>
-                                <label className="text-sm font-bold text-gray-600 block mb-2">릴스 주제</label>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-bold text-gray-600 block">릴스 주제</label>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-7 text-xs text-indigo-600 font-bold hover:bg-indigo-50"
+                                        onClick={handleSuggest}
+                                        disabled={isSuggesting}
+                                    >
+                                        {isSuggesting ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Lightbulb className="w-3 h-3 mr-1" />}
+                                        AI 주제 추천
+                                    </Button>
+                                </div>
+
+                                {suggestedTopics.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        {suggestedTopics.map((t, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => setTopic(t)}
+                                                className="px-3 py-1.5 rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-600 border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                                            >
+                                                {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
                                 <Input
                                     value={topic}
                                     onChange={(e) => setTopic(e.target.value)}
@@ -209,8 +294,46 @@ export default function ReelsCreatePage() {
                                     placeholder="예) 오늘 아침 들어온 싱싱한 연어 사시미 소개"
                                 />
                             </div>
-                            <div>
-                                <label className="text-sm font-bold text-gray-600 block mb-3">릴스 스타일</label>
+                        </Card>
+                    </section>
+
+                    <section className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2 justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="h-6 w-1 bg-indigo-600 rounded-full" />
+                                <h2 className="text-lg font-bold text-gray-800">2. 타겟과 상황</h2>
+                            </div>
+
+                            {weather && (
+                                <div className="flex items-center gap-3 px-3 py-1.5 bg-sky-50 rounded-full border border-sky-100">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-lg">{weather.icon}</span>
+                                        <span className="text-xs font-bold text-sky-700">{weather.condition}</span>
+                                    </div>
+                                    <div className="w-[1px] h-3 bg-sky-200" />
+                                    <span className="text-xs font-bold text-sky-700">{dayContext?.timeContext}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <Card className="p-6 space-y-6 shadow-sm">
+                            <div className="space-y-3">
+                                <label className="text-sm font-bold text-gray-600 block">오늘은 누구를 공략할까요? (페르소나)</label>
+                                <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                                    {["모두", "MZ세대", "커플", "직장인", "육아맘", "학생", "1인가구", "반려동물가족"].map(p => (
+                                        <button
+                                            key={p}
+                                            onClick={() => setTargetPersona(p)}
+                                            className={`py-2 px-1 rounded-lg text-xs font-bold transition-all border ${targetPersona === p ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-100 hover:border-indigo-200'}`}
+                                        >
+                                            {p}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="text-sm font-bold text-gray-600 block">릴스 스타일</label>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                     {["메뉴 소개", "가게 분위기", "리뷰 하이라이트", "오늘의 추천"].map(opt => (
                                         <button
@@ -229,7 +352,7 @@ export default function ReelsCreatePage() {
                     <section className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="h-6 w-1 bg-indigo-600 rounded-full" />
-                            <h2 className="text-lg font-bold text-gray-800">2. 감성 더하기</h2>
+                            <h2 className="text-lg font-bold text-gray-800">3. 감성 더하기</h2>
                         </div>
                         <Card className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 shadow-sm">
                             <div className="space-y-2">
@@ -262,7 +385,7 @@ export default function ReelsCreatePage() {
                     <section className="space-y-4">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="h-6 w-1 bg-indigo-600 rounded-full" />
-                            <h2 className="text-lg font-bold text-gray-800">3. 사진 업로드</h2>
+                            <h2 className="text-lg font-bold text-gray-800">4. 사진 업로드</h2>
                         </div>
                         <Card className="p-6 shadow-sm">
                             <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
@@ -305,7 +428,7 @@ export default function ReelsCreatePage() {
                         disabled={isGenerating || isRendering || images.length < 3 || !topic}
                     >
                         {isGenerating || isRendering ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <Sparkles className="w-6 h-6 mr-2" />}
-                        {isGenerating ? "AI가 대본을 작성 중..." : isRendering ? "고화질 영상 렌더링 중 (최대 2분)" : "릴스 영상 만들기 ✨"}
+                        {isGenerating ? "AI가 대본을 작성 중..." : isRendering ? "고화질 영상 렌더링 중 (최대 2분)" : "릴스 영상 제작 시작 ✨"}
                     </Button>
                 </div>
 

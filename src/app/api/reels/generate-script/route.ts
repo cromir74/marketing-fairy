@@ -3,7 +3,7 @@ import { getAI } from "@/lib/gemini";
 
 export async function POST(request: NextRequest) {
     try {
-        const { storeInfo, topic, style } = await request.json();
+        const { storeInfo, topic, style, persona, context } = await request.json();
 
         if (!storeInfo) {
             return NextResponse.json({ error: "가게 정보가 필요합니다." }, { status: 400 });
@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
 - 마지막 문구: CTA (방문 유도 또는 저장 유도)
 - 광고 냄새 나는 표현 금지 (진부한 수식어 대신 생동감 있는 표현 사용)
 - 업종(${storeInfo.category})에 맞는 톤 자동 적용
+- 선택된 페르소나(${persona || "모두"})의 취향과 관심사에 맞춘 문구를 작성하되, 대본에서 페르소나를 직접 언급(예: "MZ세대를 위한", "혼술족 추천")하지 마세요. 자연스럽게 톤과 내용에 녹여내세요.
+- 현재 상황(날씨: ${context?.weather || "맑음"}, 시간대: ${context?.timeContext || "오늘"})을 문구의 분위기에 반영하세요.
 
 [가게 데이터]
 가게명: ${storeInfo.name}
