@@ -245,7 +245,18 @@ function ContentCreatePageContent() {
                     topic,
                     images: images.filter(img => img.base64).map(img => ({ base64: img.base64, mimeType: img.mimeType })),
                     context: {
-                        weather: weather?.description,
+                        weather: (() => {
+                            if (!weather) return "";
+                            const temp = parseInt(weather.temp);
+                            let feeling = "";
+                            if (temp <= 0) feeling = "매우 추운";
+                            else if (temp <= 8) feeling = "쌀쌀한";
+                            else if (temp <= 16) feeling = "선선한";
+                            else if (temp <= 22) feeling = "포근한";
+                            else if (temp <= 28) feeling = "더워진";
+                            else feeling = "무더운";
+                            return `${weather.condition} (${feeling})`;
+                        })(),
                         dayOfWeek: dayContext?.dayName,
                         timeContext: dayContext?.timeContext,
                         targetPersona

@@ -39,7 +39,8 @@ async function waitForContainerReady(creationId: string, accessToken: string, pl
 }
 
 export async function publishToInstagram(imageUrls: string[], content: string) {
-    if (!INSTAGRAM_ID || !INSTAGRAM_TOKEN) throw new Error("Instagram API 설정이 누락되었습니다.");
+    if (!INSTAGRAM_ID) throw new Error("Instagram Business Account ID 설정이 누락되었습니다.");
+    if (!INSTAGRAM_TOKEN) throw new Error("Instagram Access Token 설정이 누락되었습니다.");
     if (!imageUrls || imageUrls.length === 0) throw new Error("인스타그램 발행에는 사진이 필수입니다.");
 
     let finalCreationId = "";
@@ -125,7 +126,8 @@ export async function publishToInstagram(imageUrls: string[], content: string) {
 }
 
 export async function publishToThreads(imageUrls: string[], content: string) {
-    if (!THREADS_ID || !THREADS_TOKEN) throw new Error("Threads API 설정이 누락되었습니다.");
+    if (!THREADS_ID) throw new Error("Threads User ID 설정이 누락되었습니다.");
+    if (!THREADS_TOKEN) throw new Error("Threads Access Token 설정이 누락되었습니다.");
 
     let finalCreationId = "";
     const imageUrl = imageUrls?.[0] || "";
