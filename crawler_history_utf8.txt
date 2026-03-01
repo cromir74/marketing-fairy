@@ -1,0 +1,2510 @@
+﻿commit 356aa06ab0b9cecfccc87cedb93fa13c19ded987
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 20:06:55 2026 +0900
+
+    fix: ?ㅼ씠踰??뚮젅?댁뒪 遺꾩꽍 ??二쇱슂 硫붾돱 諛??ㅼ썙??遺꾩쐞湲??쒕퉬?? 異붿텧 蹂듦뎄 諛?UI ?명솚??媛쒖꽑
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 2c85914..1d38e73 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -20,6 +20,10 @@ export interface PlaceInfo {
+     reviewScore: number;
+     x: string;
+     y: string;
++    // UI ?명솚?깆쓣 ?꾪븳 ?꾨뱶
++    reviewKeywords: string[];
++    menus: string[];
++    photos: string[];
+ }
+ 
+ export interface CrawlResult {
+@@ -180,6 +184,9 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
+               price
+             }
+             tags
++            keywords {
++              name
++            }
+             visitorReviewsTotal
+             visitorReviewsScore
+           }
+@@ -225,10 +232,14 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
+         if (p.description || p.desc) info.description = p.description || p.desc;
+         if (p.phone || p.virtualPhone) info.phone = p.phone || p.virtualPhone;
+         if (p.businessHours) info.businessHours = p.businessHours;
+-        if (p.tags) info.tags = p.tags;
+         if (p.visitorReviewsTotal !== undefined) info.reviewCount = p.visitorReviewsTotal;
+         if (p.visitorReviewsScore !== undefined) info.reviewScore = p.visitorReviewsScore;
+ 
++        const baseTags = Array.isArray(p.tags) ? p.tags : [];
++        const kds = Array.isArray(p.keywords) ? p.keywords : [];
++        const keywordTags = kds.map((k: any) => k.name).filter(Boolean);
++        info.tags = Array.from(new Set([...baseTags, ...keywordTags]));
++
+         if (p.menus && Array.isArray(p.menus)) {
+             info.menuItems = p.menus.map((m: any) => ({
+                 name: m.name,
+@@ -288,6 +299,15 @@ async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo>
+             info.reviewScore = place.visitorReviewsScore || 0;
+             info.tags = place.tags || [];
+ 
++            // 異붽? ?ㅼ썙???먯깋 (遺꾩쐞湲??쒕퉬??愿??
++            const placeKeywords = deepSearchByTypename(apollo, 'PlaceReviewKeyword');
++            const visitorKeywords = deepSearchByTypename(apollo, 'VisitorReviewKeyword');
++            const allKeywords = [...placeKeywords, ...visitorKeywords].map(k => k.name).filter(Boolean);
++
++            if (allKeywords.length > 0) {
++                info.tags = Array.from(new Set([...(info.tags || []), ...allKeywords]));
++            }
++
+             if (place.coordinate) {
+                 info.x = place.coordinate.x;
+                 info.y = place.coordinate.y;
+@@ -364,7 +384,10 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+         reviewCount: 0,
+         reviewScore: 0,
+         x: '',
+-        y: ''
++        y: '',
++        reviewKeywords: [],
++        menus: [],
++        photos: []
+     };
+ 
+     try {
+@@ -434,6 +457,10 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+             };
+         }
+ 
++        mergedData.reviewKeywords = mergedData.tags || [];
++        mergedData.menus = mergedData.menuItems?.map(m => m.name) || [];
++        mergedData.photos = mergedData.imageUrls || [];
++
+         return {
+             success: true,
+             method: mergedData.businessHours ? "state_extraction" : "api_combo",
+
+commit 1c1016d2f436b21b6d37baf71f45cb192156fe40
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 17:01:52 2026 +0900
+
+    feat: improve Naver Place crawler with Apollo State parsing
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index c812ac1..2c85914 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -91,7 +91,7 @@ async function extractPlaceName(url: string, placeId: string): Promise<string |
+         const res = await fetch(`https://m.place.naver.com/restaurant/${placeId}/home`, {
+             headers: BROWSER_HEADERS,
+             timeout: 5000
+-        });
++        } as any);
+         const html = await res.text();
+         const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
+         if (titleMatch) {
+@@ -125,14 +125,14 @@ async function fetchNaverLocalAPI(query: string, placeId: string): Promise<Parti
+                 'X-Naver-Client-Secret': clientSecret
+             },
+             timeout: 5000
+-        });
++        } as any);
+ 
+         if (!response.ok) {
+             console.warn(`[Crawler][Step1] Naver API Error: ${response.status}`);
+             return null;
+         }
+ 
+-        const data = await response.json();
++        const data = await response.json() as any;
+         if (!data.items || data.items.length === 0) {
+             return null;
+         }
+@@ -204,14 +204,14 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
+             },
+             body: body,
+             timeout: 5000
+-        });
++        } as any);
+ 
+         if (!response.ok) {
+             console.warn(`[Crawler][Step2] GraphQL HTTP Status: ${response.status} -> Skipped`);
+             return {};
+         }
+ 
+-        const json = await response.json();
++        const json = await response.json() as any;
+ 
+         if (json.errors || !json.data) {
+             return {};
+@@ -243,20 +243,111 @@ export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<
+     }
+ }
+ 
++// Helper: Deep search for objects by typename in Apollo state
++function deepSearchByTypename(obj: any, typename: string, results: any[] = []) {
++    if (!obj || typeof obj !== 'object') return results;
++
++    if (obj.__typename === typename) {
++        results.push(obj);
++    }
++
++    for (const key in obj) {
++        if (Object.prototype.hasOwnProperty.call(obj, key)) {
++            const val = obj[key];
++            if (val && typeof val === 'object') {
++                deepSearchByTypename(val, typename, results);
++            }
++        }
++    }
++    return results;
++}
++
++// 1-4. HTML?먯꽌 Apollo State 異붿텧 諛??뚯떛
++async function extractFromApolloState(html: string): Promise<Partial<PlaceInfo> | null> {
++    try {
++        const match = html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]+?});\s*<\/script>/) ||
++            html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]+?});\n/) ||
++            html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]+?});/);
++
++        if (!match) return null;
++
++        const apollo = JSON.parse(match[1]);
++        const info: Partial<PlaceInfo> = {};
++
++        // 1. 湲곕낯 ?뺣낫 (PlaceDetailBase ?먮뒗 Place)
++        const place = Object.values(apollo).find((v: any) => v.__typename === 'PlaceDetailBase' || v.__typename === 'Place' || v.__typename === 'Restaurant') as any;
++
++        if (place) {
++            info.name = place.name;
++            info.address = place.address;
++            info.roadAddress = place.roadAddress;
++            info.phone = place.phone || place.virtualPhone;
++            info.category = place.category;
++            info.description = place.description;
++            info.reviewCount = place.visitorReviewsTotal || 0;
++            info.reviewScore = place.visitorReviewsScore || 0;
++            info.tags = place.tags || [];
++
++            if (place.coordinate) {
++                info.x = place.coordinate.x;
++                info.y = place.coordinate.y;
++            }
++        }
++
++        // 2. ?곸뾽 ?쒓컙 (Recursive Search)
++        const workingHours = deepSearchByTypename(apollo, 'WorkingHoursInfo');
++        if (workingHours.length > 0) {
++            info.businessHours = workingHours.map(h => {
++                const day = h.day || '';
++                const start = h.businessHours?.start || '';
++                const end = h.businessHours?.end || '';
++                const breakTime = (h.breakHours && h.breakHours[0]) ? ` (釉뚮젅?댄겕 ${h.breakHours[0].start}~${h.breakHours[0].end})` : '';
++                return `${day}: ${start}~${end}${breakTime}`;
++            }).filter(s => s.length > 5).join('\n');
++        }
++
++        // 3. 硫붾돱 (Recursive Search)
++        const menus = deepSearchByTypename(apollo, 'Menu');
++        if (menus.length > 0) {
++            // ID ?먮뒗 ?대쫫 以묐났 ?쒓굅
++            const seen = new Set();
++            info.menuItems = menus.filter(m => {
++                const name = m.name || m.menuName;
++                if (!name || seen.has(name)) return false;
++                seen.add(name);
++                return true;
++            }).map(m => ({
++                name: m.name || m.menuName,
++                price: m.price || '',
++                description: m.description,
++                imageUrl: m.images?.[0] || m.image
++            }));
++        }
++
++        // 4. ?대?吏 (FsasReview ?깆뿉??異붿텧 媛?ν븯???곗꽑 硫붾돱/湲곕낯 ?대?吏)
++        const imageList = new Set<string>();
++        if (place?.images) place.images.forEach((img: any) => imageList.add(img.url || img));
++        menus.forEach(m => { if (m.images?.[0]) imageList.add(m.images[0]); });
++        info.imageUrls = Array.from(imageList);
++
++        return info;
++    } catch (e) {
++        console.warn('[Crawler] Apollo State parsing failed:', e);
++        return null;
++    }
++}
++
+ // ============================================
+ // 硫붿씤 ?щ·留??ㅼ??ㅽ듃?덉씠?? // ============================================
+ 
+ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+-    console.log('[Crawler] Starting 2-Step API Crawler. Target URL:', url);
++    console.log('[Crawler] Starting Advanced API + State Crawler. Target URL:', url);
+ 
+     const placeId = extractPlaceId(url);
+     if (!placeId) {
+         return { success: false, error: 'INVALID_URL' };
+     }
+-    if (placeId === 'SHORT_URL') {
+-        return { success: false, error: 'SHORT_URL_NOT_SUPPORTED' }; // ?ㅼ씠踰??⑥텞 URL? 諛깆뿏??Redirect ?댄썑 ?섍꺼????-    }
+ 
+     // ?곗씠???⑹꽦???꾪븳 鍮?媛앹껜
+     const mergedData: PlaceInfo = {
+@@ -278,48 +369,66 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+ 
+     try {
+         // ---------------------------------------------------------
+-        // ?④퀎 1: ?ㅼ씠踰?吏??寃??API 
+-        // (李⑤떒 ?꾪뿕???놁쑝硫?Vercel ?쒕쾭?먯꽌 利됱떆 ?묐룞??蹂댁옣)
++        // ?④퀎 0: HTML ?ㅽ겕?섑븨 諛?Apollo State ?뚯떛 (媛???곸꽭??
+         // ---------------------------------------------------------
+-        console.log('[Crawler] Step 1: Attempting Local Search API');
+-        const queryName = await extractPlaceName(url, placeId);
+-
+-        let step1Data: Partial<PlaceInfo> | null = null;
+-        if (queryName) {
+-            step1Data = await fetchNaverLocalAPI(queryName, placeId);
++        console.log('[Crawler] Step 0: Fetching HTML for State Extraction');
++        const targetUrl = url.includes('m.place.naver.com') ? url : `https://m.place.naver.com/restaurant/${placeId}/home`;
++
++        try {
++            const res = await fetch(targetUrl, {
++                headers: BROWSER_HEADERS,
++                timeout: 8000
++            } as any);
++            const html = await res.text();
++            const stateData = await extractFromApolloState(html);
++
++            if (stateData) {
++                console.log('[Crawler] Step 0 Success: Extracted from Apollo State');
++                Object.assign(mergedData, stateData);
++            }
++        } catch (e) {
++            console.warn('[Crawler] Step 0 Failed:', e);
+         }
+ 
+-        if (step1Data) {
+-            console.log('[Crawler] Step 1 Success:', step1Data.name);
+-            Object.assign(mergedData, step1Data);
++        // ---------------------------------------------------------
++        // ?④퀎 1: ?ㅼ씠踰?吏??寃??API (?뺣낫 蹂댁셿)
++        // ---------------------------------------------------------
++        if (!mergedData.name) {
++            console.log('[Crawler] Step 1: Attempting Local Search API');
++            const queryName = await extractPlaceName(url, placeId);
++            if (queryName) {
++                const step1Data = await fetchNaverLocalAPI(queryName, placeId);
++                if (step1Data) {
++                    console.log('[Crawler] Step 1 Success:', step1Data.name);
++                    Object.assign(mergedData, step1Data);
++                }
++            }
+         }
+ 
+         // ---------------------------------------------------------
+-        // ?④퀎 2: ?ㅼ씠踰?GraphQL 議고쉶
+-        // (硫붾돱, ?곸뾽?쒓컙, ?됱젏 ?깆쓣 蹂댁땐?섍린 ?꾪븿, ?ㅽ뙣?대룄 硫덉텛吏 ?딆쓬)
++        // ?④퀎 2: ?ㅼ씠踰?GraphQL 議고쉶 (理쒖쥌 蹂댁셿)
+         // ---------------------------------------------------------
+-        console.log('[Crawler] Step 2: Attempting GraphQL Detail API');
+-        const step2Data = await fetchPlaceDetailGraphQL(placeId);
+-
+-        for (const [key, value] of Object.entries(step2Data)) {
+-            // ?대? 1?④퀎?먯꽌 ?ㅼ뼱??媛믪씠 ?섎??덉쑝硫??좎??섍퀬, 2?④퀎?먯꽌 ?덈∼寃??살? 諛곗뿴(硫붾돱 ???대굹 媛믩쭔 蹂묓빀
+-            if (value && (!mergedData[key as keyof PlaceInfo] || (Array.isArray(value) && value.length > 0))) {
+-                (mergedData as any)[key] = value;
++        if (!mergedData.businessHours || mergedData.menuItems.length === 0) {
++            console.log('[Crawler] Step 2: Attempting GraphQL Detail API');
++            const step2Data = await fetchPlaceDetailGraphQL(placeId);
++            for (const [key, value] of Object.entries(step2Data)) {
++                if (value && (!mergedData[key as keyof PlaceInfo] || (Array.isArray(value) && value.length === 0))) {
++                    (mergedData as any)[key] = value;
++                }
+             }
+         }
+ 
+         // ---------------------------------------------------------
+         // 理쒖쥌 寃利?諛?寃고빀
+         // ---------------------------------------------------------
+-        const hasBasicInfo = !!(mergedData.name && mergedData.address);
+-        // 硫붾돱 ?뺣낫???곸뾽?쒓컙 ??遺媛 ?뺣낫媛 鍮꾩뼱?덈떎硫?Manual Input ?좊룄
++        const hasBasicInfo = !!(mergedData.name && (mergedData.address || mergedData.roadAddress));
+         const lacksDetails = !mergedData.menuItems || mergedData.menuItems.length === 0 || !mergedData.businessHours;
+ 
+         if (!hasBasicInfo) {
+-            console.warn('[Crawler] All steps failed to extract basic info. Falling back to manual input.');
++            console.warn('[Crawler] Failed to extract basic info.');
+             return {
+-                success: true,  // ?쇱쑝濡??섍린湲??꾪빐 true 諛섑솚
+-                method: 'api_fallback',
++                success: true,
++                method: 'fallback',
+                 needsManualInput: true,
+                 partialData: mergedData
+             };
+@@ -327,14 +436,14 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+ 
+         return {
+             success: true,
+-            method: "api_combo",
++            method: mergedData.businessHours ? "state_extraction" : "api_combo",
+             data: mergedData,
+-            needsManualInput: lacksDetails, // ?곸꽭 ?뺣낫 ?꾨씫 ???낅젰 ???깆옣
+-            partialData: lacksDetails ? mergedData : undefined // ?낅젰 ?쇱뿉 誘몃━ 梨꾩썙?ｌ쓣 媛?+            needsManualInput: lacksDetails,
++            partialData: mergedData
+         };
+ 
+     } catch (error: any) {
+-        console.error('[Crawler] Fatal orchestration error. Recovering smoothly...', error);
++        console.error('[Crawler] Fatal orchestration error:', error);
+         return {
+             success: true,
+             method: "error_fallback",
+@@ -343,3 +452,4 @@ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+         };
+     }
+ }
++
+
+commit 6f8725dd744ef4fbfb8b7d690302229f6934635c
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 16:10:58 2026 +0900
+
+    fix: prevent browser cache for auth routes and retry deploy
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index dc39d7f..c812ac1 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -1,3 +1,5 @@
++// Vercel 李⑤떒 ?고쉶瑜??꾪븳 API 湲곕컲 ?щ·??(HTML ?뚯떛 ?쒓굅)
++// 釉뚮씪?곗? ?뚮뜑留곸씠???뺢퇋??湲곕컲 移섑솚 ??? 100% 怨듭떇/鍮꾧났??API留뚯쓣 議고빀?섏뿬 ?고쉶?⑸땲??
+ import fetch from 'node-fetch';
+ 
+ // ============================================
+@@ -20,210 +22,324 @@ export interface PlaceInfo {
+     y: string;
+ }
+ 
+-export interface PlaceData extends Partial<PlaceInfo> {
+-    name: string;
+-    category: string;
+-    description: string;
+-    menus: string[];
+-    reviewKeywords: string[];
+-    photos: string[];
+-    rating?: number;
+-}
+-
+ export interface CrawlResult {
+     success: boolean;
+-    data: PlaceInfo | null;
+-    method: 'graphql' | 'mobile_web' | 'manual' | 'none';
++    method?: string;
++    data?: PlaceInfo;
+     error?: string;
+     needsManualInput?: boolean;
+     partialData?: Partial<PlaceInfo>;
+ }
+ 
+ // ============================================
+-// ?좏떥由ы떚
++// 怨듯넻 ?좏떥由ы떚
+ // ============================================
+-function extractPlaceId(url: string): string | null {
++
++// ?ㅼ씠踰??뚮젅?댁뒪 URL?먯꽌 place ID 異붿텧
++export function extractPlaceId(url: string): string | null {
+     const patterns = [
+         /place\/(\d+)/,
+-        /\/restaurant\/(\d+)/,
+-        /\/cafe\/(\d+)/,
+-        /\/hairshop\/(\d+)/,
+-        /\/beauty\/(\d+)/,
+-        /\/hospital\/(\d+)/,
+-        /\/pharmacy\/(\d+)/,
++        /restaurant\/(\d+)/,
++        /v1\/search\/local.*query=.*&.*id=(\d+)/
+     ];
++
+     for (const pattern of patterns) {
+         const match = url.match(pattern);
+         if (match) return match[1];
+     }
+-    return null;
+-}
+ 
+-function getBusinessType(url: string): string {
+-    if (url.includes('/cafe/')) return 'cafe';
+-    if (url.includes('/hairshop/') || url.includes('/beauty/')) return 'hairshop';
+-    if (url.includes('/hospital/')) return 'hospital';
+-    return 'restaurant';
++    try {
++        const urlObj = new URL(url);
++        if (urlObj.hostname === 'naver.me') {
++            return 'SHORT_URL';
++        }
++    } catch (e) { }
++
++    return null;
+ }
+ 
++// 紐⑤컮??釉뚮씪?곗? ?됰궡 ?ㅻ뜑 (API ?붿껌 ???ㅼ씠踰?API 寃뚯씠?몄썾???고쉶??
+ const BROWSER_HEADERS = {
+-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
++    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G998N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36',
++    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+-    'Cache-Control': 'no-cache',
++    'Cache-Control': 'max-age=0',
++    'Connection': 'keep-alive',
++    'Upgrade-Insecure-Requests': '1',
++    'sec-ch-ua': '"Chromium";v="118", "Google Chrome";v="118", "Not=A?Brand";v="99"',
++    'sec-ch-ua-mobile': '?1',
++    'sec-ch-ua-platform': '"Android"'
+ };
+ 
+ // ============================================
+-// 1?④퀎: 紐⑤컮????理쒖쟻???뚯떛
++// 1?④퀎: ?ㅼ씠踰?怨듭떇 吏?????API
+ // ============================================
+-async function tryMobileWeb(placeId: string, businessType: string): Promise<CrawlResult> {
+-    console.log(`[Crawler][MobileWeb] Fetching place ${placeId}`);
+-    const url = `https://m.place.naver.com/${businessType}/${placeId}/home`;
+ 
++// 1-1. 紐⑤컮???뱁럹?댁? `<title>` ?뱀? 寃?됱뼱?먯꽌 媛寃??대쫫 異붿텧
++async function extractPlaceName(url: string, placeId: string): Promise<string | null> {
++    // ?곗꽑 URL 寃?됱뼱 ?뚮씪誘명꽣媛 ?덈뒗吏 ?뺤씤 (?? /search/?덉뼇留쏆쭛/place/1234)
+     try {
+-        const response = await fetch(url, { headers: BROWSER_HEADERS });
+-        if (!response.ok) return { success: false, data: null, method: 'mobile_web', error: `HTTP_${response.status}` };
+-
+-        const html = await response.text();
+-        let data: Partial<PlaceInfo> = {};
+-
+-        // 1. JSON-LD ?뚯떛 (媛??怨듭떇?곸씠怨?蹂?섏? ?딆쓬)
+-        const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+-        if (jsonLdMatch) {
+-            try {
+-                const jsonLd = JSON.parse(jsonLdMatch[1]);
+-                const main = Array.isArray(jsonLd) ? jsonLd[0] : jsonLd;
+-                data.name = main.name;
+-                data.address = main.address?.streetAddress;
+-                data.phone = main.telephone;
+-                data.description = main.description;
+-                data.imageUrls = main.image ? (Array.isArray(main.image) ? main.image : [main.image]) : [];
+-            } catch (e) { }
++        const match = url.match(/search\/([^\/]+)\/place/);
++        if (match) {
++            const decoded = decodeURIComponent(match[1]).trim();
++            return decoded;
+         }
++    } catch (e) { }
+ 
+-        // 2. window.__APOLLO_STATE__ ?뚯떛 (?곸꽭 ?뺣낫 ?ы븿)
+-        const apolloMatch = html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]*?})(?:;|<\/script>)/);
+-        if (apolloMatch) {
+-            try {
+-                let jsonText = apolloMatch[1].trim();
+-                if (jsonText.endsWith(';')) jsonText = jsonText.slice(0, -1);
+-                const state = JSON.parse(jsonText);
+-
+-                // ?곸젏 ?뺣낫瑜??댁? 媛앹껜 李얘린 (?ㅼ뼇??寃쎈줈 ?쒕룄)
+-                let p: any = null;
+-
+-                // 寃쎈줈 1: 吏곸젒?곸씤 Place or BusinessBase 媛앹껜
+-                const placeKey = Object.keys(state).find(k => k.startsWith('Place:') || k.startsWith('BusinessBase:'));
+-                if (placeKey) p = state[placeKey];
+-
+-                // 寃쎈줈 2: ROOT_QUERY ?댁쓽 李몄“ ?뺤씤
+-                if (!p && state.ROOT_QUERY) {
+-                    const detailKey = Object.keys(state.ROOT_QUERY).find(k => k.startsWith('placeDetail') || k.startsWith('place('));
+-                    if (detailKey) {
+-                        const ref = state.ROOT_QUERY[detailKey];
+-                        // { __ref: "Place:123" } ?뺥깭??寃쎌슦 ?대떦 媛앹껜濡??대룞
+-                        if (ref && ref.__ref && state[ref.__ref]) {
+-                            p = state[ref.__ref];
+-                        } else {
+-                            p = ref;
+-                        }
+-                    }
+-                }
+-
+-                if (p) {
+-                    data.name = data.name || p.name || p.title || p.bizName;
+-                    data.category = data.category || p.category || p.businessCategory || p.categoryName || '';
+-                    data.description = data.description || p.description || p.microReview || p.introduction || '';
+-                    data.address = data.address || p.address || p.fullAddress || p.roadAddress || p.newAddress;
+-                    data.roadAddress = data.roadAddress || p.roadAddress || p.commonAddress || '';
+-                    data.phone = data.phone || p.phone || p.virtualPhone || p.tel || p.phoneNo;
+-                    data.businessHours = data.businessHours || p.businessHours || p.hoursDescription || '';
+-                    data.tags = [...new Set([...(data.tags || []), ...(p.tags || []), ...(p.keywords || [])])];
+-                    data.reviewCount = data.reviewCount || p.visitorReviewCount || p.totalReviewCount || 0;
+-                    data.reviewScore = data.reviewScore || p.visitorReviewScore || 0;
+-                    data.x = String(data.x || p.x || p.longitude || '');
+-                    data.y = String(data.y || p.y || p.latitude || '');
+-
+-                    if (p.imageUrls || p.images) {
+-                        const imgs = p.imageUrls || p.images?.map((i: any) => i.url || i);
+-                        data.imageUrls = [...new Set([...(data.imageUrls || []), ...imgs])];
+-                    }
+-                }
+-
+-                // 硫붾돱 ?뺣낫 (?뺢퇋?붾맂 Apollo Cache ???
+-                const menus = data.menuItems || [];
+-                for (const key of Object.keys(state)) {
+-                    if (key.startsWith('Menu:')) {
+-                        const m = state[key];
+-                        if (m.name && !menus.some(exist => exist.name === m.name)) {
+-                            menus.push({ name: m.name, price: String(m.price || m.priceValue || '') });
+-                        }
+-                    }
+-                }
+-                if (menus.length > 0) data.menuItems = menus;
+-
+-            } catch (e: any) {
+-                console.warn('[Crawler][MobileWeb] Apollo parse error:', e.message);
++    // 1-2. 寃?됱뼱媛 ?녿떎硫?紐⑤컮??硫붿씤??媛蹂띻쾶 ?묎렐?섏뿬 <title> ?쒓렇留?異붿텧 (HTML 蹂몃Ц ?뚯떛 ?덊븿)
++    try {
++        const res = await fetch(`https://m.place.naver.com/restaurant/${placeId}/home`, {
++            headers: BROWSER_HEADERS,
++            timeout: 5000
++        });
++        const html = await res.text();
++        const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
++        if (titleMatch) {
++            let title = titleMatch[1].replace(' : ?ㅼ씠踰?, '').replace('- ?ㅼ씠踰??뚮젅?댁뒪', '').trim();
++            if (title && title !== '?ㅼ씠踰??뚮젅?댁뒪' && title !== '?ㅼ씠踰?吏??) {
++                return title;
+             }
+         }
++    } catch (error) {
++        console.warn('[Crawler][Step1] Failed to extract name from basic metadata:', error);
++    }
++    return null;
++}
+ 
+-        // 3. 理쒗썑???섎떒: HTML ??댄? 諛?硫뷀??쒓렇?먯꽌 ?곹샇紐낆씠?쇰룄 異붿텧
+-        if (!data.name) {
+-            const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
+-            if (titleMatch) {
+-                const title = titleMatch[1].replace(' : ?ㅼ씠踰?, '').replace('- ?ㅼ씠踰??뚮젅?댁뒪', '').trim();
+-                data.name = title;
+-            }
++// 1-3. ?ㅼ씠踰?怨듭떇 API 寃??+async function fetchNaverLocalAPI(query: string, placeId: string): Promise<Partial<PlaceInfo> | null> {
++    const clientId = process.env.NAVER_CLIENT_ID;
++    const clientSecret = process.env.NAVER_CLIENT_SECRET;
++
++    if (!clientId || !clientSecret) {
++        console.warn('[Crawler][Step1] NAVER_CLIENT_ID or NAVER_CLIENT_SECRET varies is missing in .env');
++        return null;
++    }
++
++    try {
++        const apiUrl = `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(query)}&display=5&start=1&sort=random`;
++        const response = await fetch(apiUrl, {
++            method: 'GET',
++            headers: {
++                'X-Naver-Client-Id': clientId,
++                'X-Naver-Client-Secret': clientSecret
++            },
++            timeout: 5000
++        });
++
++        if (!response.ok) {
++            console.warn(`[Crawler][Step1] Naver API Error: ${response.status}`);
++            return null;
+         }
+ 
+-        // ?꾩꽦???곗씠??寃利?-        if (data.name) {
+-            console.log(`[Crawler][MobileWeb] Successfully extracted: ${data.name}`);
+-            return {
+-                success: true,
+-                method: 'mobile_web',
+-                data: {
+-                    name: data.name,
+-                    category: data.category || '',
+-                    description: data.description || '',
+-                    address: data.address || '',
+-                    roadAddress: data.roadAddress || '',
+-                    phone: data.phone || '',
+-                    businessHours: data.businessHours || '',
+-                    imageUrls: data.imageUrls || [],
+-                    menuItems: data.menuItems || [],
+-                    tags: [...new Set(data.tags || [])],
+-                    reviewCount: data.reviewCount || 0,
+-                    reviewScore: data.reviewScore || 0,
+-                    x: data.x || '',
+-                    y: data.y || '',
+-                }
+-            };
++        const data = await response.json();
++        if (!data.items || data.items.length === 0) {
++            return null;
+         }
+ 
+-        return { success: false, data: null, method: 'mobile_web', error: 'PARSING_FAILED', needsManualInput: true, partialData: data };
+-    } catch (error: any) {
+-        return { success: false, data: null, method: 'mobile_web', error: error.message };
+-    }
+-}
++        // ?곗꽑 泥ル쾲吏?寃곌낵瑜?梨꾪깮 (?섏쨷??醫뚰몴 湲곕컲 怨좊룄??媛??
++        const item = data.items[0];
++        const cleanName = item.title.replace(/<[^>]+>/g, '').trim();
+ 
+-export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+-    const r = await crawlNaverPlace(url);
+-    if (r.success && r.data) {
+         return {
+-            name: r.data.name, category: r.data.category, description: r.data.description,
+-            address: r.data.address, phone: r.data.phone, businessHours: r.data.businessHours,
+-            rating: r.data.reviewScore, photos: r.data.imageUrls,
+-            menus: r.data.menuItems.map(m => `${m.name} (${m.price})`), reviewKeywords: r.data.tags
++            name: cleanName,
++            category: item.category || '',
++            address: item.address || '',
++            roadAddress: item.roadAddress || '',
++            phone: item.telephone || '',
++            x: item.mapx || '',
++            y: item.mapy || ''
+         };
++    } catch (error) {
++        console.error('[Crawler][Step1] Exception during Naver Local API fetch:', error);
++        return null;
++    }
++}
++
++// ============================================
++// 2?④퀎: ?ㅼ씠踰??뚮젅?댁뒪 鍮꾧났??GraphQL API
++// ============================================
++
++export async function fetchPlaceDetailGraphQL(placeId: string): Promise<Partial<PlaceInfo>> {
++    try {
++        const graphqlUrl = 'https://pcmap-api.place.naver.com/place/graphql';
++
++        // ?곸뾽?쒓컙/硫붾돱/?됱젏 ??遺媛?뺣낫 ?ㅻ땲?묒슜 荑쇰━
++        const query = `
++      query getPlaces($id: String!) {
++        places(input: { businessId: $id }) {
++          items {
++            businessName
++            category
++            description
++            phone
++            virtualPhone
++            businessHours
++            menus {
++              name
++              price
++            }
++            tags
++            visitorReviewsTotal
++            visitorReviewsScore
++          }
++        }
++      }
++    `;
++
++        const body = JSON.stringify({
++            operationName: 'getPlaces',
++            variables: { id: placeId },
++            query: query
++        });
++
++        const response = await fetch(graphqlUrl, {
++            method: 'POST',
++            headers: {
++                'User-Agent': BROWSER_HEADERS['User-Agent'],
++                'Referer': `https://pcmap.place.naver.com/restaurant/${placeId}/home`,
++                'Content-Type': 'application/json',
++                'Accept': 'application/json',
++                'Accept-Language': 'ko'
++            },
++            body: body,
++            timeout: 5000
++        });
++
++        if (!response.ok) {
++            console.warn(`[Crawler][Step2] GraphQL HTTP Status: ${response.status} -> Skipped`);
++            return {};
++        }
++
++        const json = await response.json();
++
++        if (json.errors || !json.data) {
++            return {};
++        }
++
++        const p = json.data?.places?.items?.[0] || json.data?.restaurant || {};
++
++        const info: Partial<PlaceInfo> = {};
++        if (p.businessName || p.name) info.name = p.businessName || p.name;
++        if (p.category) info.category = p.category;
++        if (p.description || p.desc) info.description = p.description || p.desc;
++        if (p.phone || p.virtualPhone) info.phone = p.phone || p.virtualPhone;
++        if (p.businessHours) info.businessHours = p.businessHours;
++        if (p.tags) info.tags = p.tags;
++        if (p.visitorReviewsTotal !== undefined) info.reviewCount = p.visitorReviewsTotal;
++        if (p.visitorReviewsScore !== undefined) info.reviewScore = p.visitorReviewsScore;
++
++        if (p.menus && Array.isArray(p.menus)) {
++            info.menuItems = p.menus.map((m: any) => ({
++                name: m.name,
++                price: typeof m.price === 'string' ? m.price : String(m.price || '')
++            }));
++        }
++
++        return info;
++    } catch (error) {
++        console.warn('[Crawler][Step2] GraphQL Request Skipped due to error');
++        return {}; // ?쒕쾭 ?щ옒??諛⑹?
+     }
+-    return null;
+ }
+ 
++// ============================================
++// 硫붿씤 ?щ·留??ㅼ??ㅽ듃?덉씠??+// ============================================
++
+ export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
+-    const id = extractPlaceId(url);
+-    if (!id) return { success: false, data: null, method: 'none', error: 'INVALID_URL', needsManualInput: true };
++    console.log('[Crawler] Starting 2-Step API Crawler. Target URL:', url);
++
++    const placeId = extractPlaceId(url);
++    if (!placeId) {
++        return { success: false, error: 'INVALID_URL' };
++    }
++    if (placeId === 'SHORT_URL') {
++        return { success: false, error: 'SHORT_URL_NOT_SUPPORTED' }; // ?ㅼ씠踰??⑥텞 URL? 諛깆뿏??Redirect ?댄썑 ?섍꺼????+    }
++
++    // ?곗씠???⑹꽦???꾪븳 鍮?媛앹껜
++    const mergedData: PlaceInfo = {
++        name: '',
++        category: '',
++        description: '',
++        address: '',
++        roadAddress: '',
++        phone: '',
++        businessHours: '',
++        imageUrls: [],
++        menuItems: [],
++        tags: [],
++        reviewCount: 0,
++        reviewScore: 0,
++        x: '',
++        y: ''
++    };
++
++    try {
++        // ---------------------------------------------------------
++        // ?④퀎 1: ?ㅼ씠踰?吏??寃??API 
++        // (李⑤떒 ?꾪뿕???놁쑝硫?Vercel ?쒕쾭?먯꽌 利됱떆 ?묐룞??蹂댁옣)
++        // ---------------------------------------------------------
++        console.log('[Crawler] Step 1: Attempting Local Search API');
++        const queryName = await extractPlaceName(url, placeId);
+ 
+-    const type = getBusinessType(url);
+-    return await tryMobileWeb(id, type);
++        let step1Data: Partial<PlaceInfo> | null = null;
++        if (queryName) {
++            step1Data = await fetchNaverLocalAPI(queryName, placeId);
++        }
++
++        if (step1Data) {
++            console.log('[Crawler] Step 1 Success:', step1Data.name);
++            Object.assign(mergedData, step1Data);
++        }
++
++        // ---------------------------------------------------------
++        // ?④퀎 2: ?ㅼ씠踰?GraphQL 議고쉶
++        // (硫붾돱, ?곸뾽?쒓컙, ?됱젏 ?깆쓣 蹂댁땐?섍린 ?꾪븿, ?ㅽ뙣?대룄 硫덉텛吏 ?딆쓬)
++        // ---------------------------------------------------------
++        console.log('[Crawler] Step 2: Attempting GraphQL Detail API');
++        const step2Data = await fetchPlaceDetailGraphQL(placeId);
++
++        for (const [key, value] of Object.entries(step2Data)) {
++            // ?대? 1?④퀎?먯꽌 ?ㅼ뼱??媛믪씠 ?섎??덉쑝硫??좎??섍퀬, 2?④퀎?먯꽌 ?덈∼寃??살? 諛곗뿴(硫붾돱 ???대굹 媛믩쭔 蹂묓빀
++            if (value && (!mergedData[key as keyof PlaceInfo] || (Array.isArray(value) && value.length > 0))) {
++                (mergedData as any)[key] = value;
++            }
++        }
++
++        // ---------------------------------------------------------
++        // 理쒖쥌 寃利?諛?寃고빀
++        // ---------------------------------------------------------
++        const hasBasicInfo = !!(mergedData.name && mergedData.address);
++        // 硫붾돱 ?뺣낫???곸뾽?쒓컙 ??遺媛 ?뺣낫媛 鍮꾩뼱?덈떎硫?Manual Input ?좊룄
++        const lacksDetails = !mergedData.menuItems || mergedData.menuItems.length === 0 || !mergedData.businessHours;
++
++        if (!hasBasicInfo) {
++            console.warn('[Crawler] All steps failed to extract basic info. Falling back to manual input.');
++            return {
++                success: true,  // ?쇱쑝濡??섍린湲??꾪빐 true 諛섑솚
++                method: 'api_fallback',
++                needsManualInput: true,
++                partialData: mergedData
++            };
++        }
++
++        return {
++            success: true,
++            method: "api_combo",
++            data: mergedData,
++            needsManualInput: lacksDetails, // ?곸꽭 ?뺣낫 ?꾨씫 ???낅젰 ???깆옣
++            partialData: lacksDetails ? mergedData : undefined // ?낅젰 ?쇱뿉 誘몃━ 梨꾩썙?ｌ쓣 媛?+        };
++
++    } catch (error: any) {
++        console.error('[Crawler] Fatal orchestration error. Recovering smoothly...', error);
++        return {
++            success: true,
++            method: "error_fallback",
++            needsManualInput: true,
++            partialData: mergedData
++        };
++    }
+ }
+
+commit 4ff96a7e8f0653801defd55bad34d878717cca70
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 12:34:41 2026 +0900
+
+    update naver place crawler
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 9bfc0e8..dc39d7f 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -1,411 +1,229 @@
+-export interface PlaceData {
++import fetch from 'node-fetch';
++
++// ============================================
++// ????뺤쓽
++// ============================================
++export interface PlaceInfo {
++    name: string;
++    category: string;
++    description: string;
++    address: string;
++    roadAddress: string;
++    phone: string;
++    businessHours: string;
++    imageUrls: string[];
++    menuItems: { name: string; price: string; description?: string; imageUrl?: string }[];
++    tags: string[];
++    reviewCount: number;
++    reviewScore: number;
++    x: string;
++    y: string;
++}
++
++export interface PlaceData extends Partial<PlaceInfo> {
+     name: string;
+     category: string;
+     description: string;
+     menus: string[];
+     reviewKeywords: string[];
+     photos: string[];
+-    phone?: string;
+-    address?: string;
+-    businessHours?: string;
+     rating?: number;
+ }
+ 
+-import * as cheerio from 'cheerio';
+-
+-export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+-    let targetUrl = url;
++export interface CrawlResult {
++    success: boolean;
++    data: PlaceInfo | null;
++    method: 'graphql' | 'mobile_web' | 'manual' | 'none';
++    error?: string;
++    needsManualInput?: boolean;
++    partialData?: Partial<PlaceInfo>;
++}
+ 
+-    // 1. ?⑥텞 URL (naver.me) ?닿껐
+-    if (url.includes("naver.me")) {
+-        try {
+-            console.log(`[Crawler] Resolving short URL: ${url}`);
+-            const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+-            targetUrl = res.url;
+-            console.log(`[Crawler] Resolved to: ${targetUrl}`);
+-            if (!targetUrl.includes("place")) {
+-                console.warn("[Crawler] Resolved URL might be incorrect (no 'place' in URL)");
+-            }
+-        } catch (e: any) {
+-            console.error("[Crawler] URL Resolution failed", e.message);
+-        }
++// ============================================
++// ?좏떥由ы떚
++// ============================================
++function extractPlaceId(url: string): string | null {
++    const patterns = [
++        /place\/(\d+)/,
++        /\/restaurant\/(\d+)/,
++        /\/cafe\/(\d+)/,
++        /\/hairshop\/(\d+)/,
++        /\/beauty\/(\d+)/,
++        /\/hospital\/(\d+)/,
++        /\/pharmacy\/(\d+)/,
++    ];
++    for (const pattern of patterns) {
++        const match = url.match(pattern);
++        if (match) return match[1];
+     }
++    return null;
++}
+ 
+-    // 2. 紐⑤컮??URL濡?蹂??(紐⑤컮???섏씠吏媛 ?곗씠??異붿텧?????⑹씠??
+-    let mobileUrl = targetUrl;
+-
+-    // URL?먯꽌 留ㅼ옣 ID 異붿텧 ?쒕룄 (?ㅼ뼇???⑦꽩 ???
+-    const placeIdMatch = targetUrl.match(/place\/(\d+)/) || targetUrl.match(/id=(\d+)/) || targetUrl.match(/\/(\d+)\//);
++function getBusinessType(url: string): string {
++    if (url.includes('/cafe/')) return 'cafe';
++    if (url.includes('/hairshop/') || url.includes('/beauty/')) return 'hairshop';
++    if (url.includes('/hospital/')) return 'hospital';
++    return 'restaurant';
++}
+ 
+-    if (placeIdMatch && placeIdMatch[1] && placeIdMatch[1].length >= 6) {
+-        mobileUrl = `https://m.place.naver.com/place/${placeIdMatch[1]}/home`;
+-        console.log(`[Crawler] Target ID identified: ${placeIdMatch[1]}`);
+-    } else {
+-        mobileUrl = targetUrl.replace("map.naver.com", "m.place.naver.com");
+-        if (!mobileUrl.includes("m.place.naver.com")) {
+-            // 二쇱냼媛 蹂?섎릺吏 ?딆븯?????섎룞 蹂댁젙
+-            if (mobileUrl.includes("map.naver.com/p/")) {
+-                const parts = mobileUrl.split("/");
+-                const id = parts.find(p => /^\d+$/.test(p));
+-                if (id) {
+-                    mobileUrl = `https://m.place.naver.com/place/${id}/home`;
+-                }
+-            }
+-        }
+-    }
++const BROWSER_HEADERS = {
++    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
++    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
++    'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
++    'Cache-Control': 'no-cache',
++};
+ 
+-    console.log(`[Crawler] Final Mobile URL: ${mobileUrl}`);
++// ============================================
++// 1?④퀎: 紐⑤컮????理쒖쟻???뚯떛
++// ============================================
++async function tryMobileWeb(placeId: string, businessType: string): Promise<CrawlResult> {
++    console.log(`[Crawler][MobileWeb] Fetching place ${placeId}`);
++    const url = `https://m.place.naver.com/${businessType}/${placeId}/home`;
+ 
+-    // --- 1?④퀎: Cheerio 湲곕컲 怨좊????곗씠??異붿텧 (釉뚮씪?곗? ?놁씠 ?뚯뒪 ?뚯떛) ---
+     try {
+-        console.log(`[Crawler] Starting high-performance Fetch/Cheerio extraction...`);
+-        const res = await fetch(mobileUrl, {
+-            headers: {
+-                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+-                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+-                'Referer': 'https://m.search.naver.com/',
+-                'Cache-Control': 'no-cache',
+-                'sec-ch-ua-mobile': '?1',
+-                'sec-ch-ua-platform': '"iOS"'
+-            }
+-        });
+-
+-        console.log(`[Crawler] Fetch status: ${res.status} ${res.statusText}`);
+-        const html = await res.text();
+-        console.log(`[Crawler] HTML length: ${html.length} bytes, Preview: ${html.substring(0, 100).replace(/\n/g, "")}`);
+-
+-        const $ = cheerio.load(html);
+-
+-        // ?ㅼ씠踰??뚮젅?댁뒪??__INITIAL_STATE__ ?ㅽ겕由쏀듃 ?쒓렇??嫄곗쓽 紐⑤뱺 ?뺣낫媛 ?ы븿?섏뼱 ?덉쓬
+-        const scripts = $('script').toArray();
+-        console.log(`[Crawler] Found ${scripts.length} script tags`);
+-
+-        const stateScript = scripts.find(s => {
+-            const content = $(s).text() || "";
+-            return content.includes('__INITIAL_STATE__') || content.includes('__APOLLO_STATE__');
+-        });
++        const response = await fetch(url, { headers: BROWSER_HEADERS });
++        if (!response.ok) return { success: false, data: null, method: 'mobile_web', error: `HTTP_${response.status}` };
+ 
+-        if (stateScript) {
+-            const stateText = $(stateScript).text() || "";
+-            console.log(`[Crawler] Found state script, length: ${stateText.length} chars`);
+-            // ?뺢퇋?앹쑝濡?JSON 異붿텧 (?щ윭 蹂?섎챸 ???
+-            const jsonMatch = stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*?});/) ||
+-                stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*})/);
++        const html = await response.text();
++        let data: Partial<PlaceInfo> = {};
+ 
+-            const jsonText = jsonMatch ? jsonMatch[1] : null;
+-
+-            if (jsonText) {
+-                try {
+-                    const state = JSON.parse(jsonText);
+-                    // 1. __INITIAL_STATE__ 諛⑹떇 (湲곗〈)
+-                    let place = state.place?.rootData?.place || state.place?.place || state.placeDetail?.rootData?.place;
+-
+-                    // 2. __APOLLO_STATE__ 諛⑹떇 (?좉퇋)
+-                    if (!place) {
+-                        const placeKey = Object.keys(state).find(k => k.startsWith('Place:')) ||
+-                            Object.keys(state).find(k => k.startsWith('BusinessBase:'));
+-                        if (placeKey) {
+-                            place = state[placeKey];
+-                            console.log(`[Crawler] Found data in Apollo state with key: ${placeKey}`);
+-                        }
+-                    }
+-
+-                    if (place) {
+-                        console.log(`[Crawler] Successfully parsed state for: ${place.name || place.title}`);
++        // 1. JSON-LD ?뚯떛 (媛??怨듭떇?곸씠怨?蹂?섏? ?딆쓬)
++        const jsonLdMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
++        if (jsonLdMatch) {
++            try {
++                const jsonLd = JSON.parse(jsonLdMatch[1]);
++                const main = Array.isArray(jsonLd) ? jsonLd[0] : jsonLd;
++                data.name = main.name;
++                data.address = main.address?.streetAddress;
++                data.phone = main.telephone;
++                data.description = main.description;
++                data.imageUrls = main.image ? (Array.isArray(main.image) ? main.image : [main.image]) : [];
++            } catch (e) { }
++        }
+ 
+-                        // ?곸꽭 ?곸뾽?쒓컙 議곕┰
+-                        let bHours = "";
+-                        const bizHours = place.bizHour || place.businessHours?.bizHours || place.bizHourInfo;
+-                        if (Array.isArray(bizHours)) {
+-                            bHours = bizHours.map((h: any) => {
+-                                const day = h.day || h.type;
+-                                let time = h.businessTime || h.time || "";
+-                                if (h.breakTime) time += ` (釉뚮젅?댄겕???${h.breakTime})`;
+-                                if (h.lastOrder) time += ` (?쇱뒪?몄삤??${h.lastOrder})`;
+-                                return `${day}: ${time}`;
+-                            }).join("\n");
+-                        } else if (typeof bizHours === 'string') {
+-                            bHours = bizHours;
++        // 2. window.__APOLLO_STATE__ ?뚯떛 (?곸꽭 ?뺣낫 ?ы븿)
++        const apolloMatch = html.match(/window\.__APOLLO_STATE__\s*=\s*({[\s\S]*?})(?:;|<\/script>)/);
++        if (apolloMatch) {
++            try {
++                let jsonText = apolloMatch[1].trim();
++                if (jsonText.endsWith(';')) jsonText = jsonText.slice(0, -1);
++                const state = JSON.parse(jsonText);
++
++                // ?곸젏 ?뺣낫瑜??댁? 媛앹껜 李얘린 (?ㅼ뼇??寃쎈줈 ?쒕룄)
++                let p: any = null;
++
++                // 寃쎈줈 1: 吏곸젒?곸씤 Place or BusinessBase 媛앹껜
++                const placeKey = Object.keys(state).find(k => k.startsWith('Place:') || k.startsWith('BusinessBase:'));
++                if (placeKey) p = state[placeKey];
++
++                // 寃쎈줈 2: ROOT_QUERY ?댁쓽 李몄“ ?뺤씤
++                if (!p && state.ROOT_QUERY) {
++                    const detailKey = Object.keys(state.ROOT_QUERY).find(k => k.startsWith('placeDetail') || k.startsWith('place('));
++                    if (detailKey) {
++                        const ref = state.ROOT_QUERY[detailKey];
++                        // { __ref: "Place:123" } ?뺥깭??寃쎌슦 ?대떦 媛앹껜濡??대룞
++                        if (ref && ref.__ref && state[ref.__ref]) {
++                            p = state[ref.__ref];
++                        } else {
++                            p = ref;
+                         }
+-
+-                        // 硫붾돱/?ㅼ썙??異붿텧
+-                        const menus = (place.menuInfo?.menus || []).map((m: any) => m.name || m.label).slice(0, 5);
+-                        const keywords = (place.visitorReviewStats?.analysis?.themes || []).map((t: any) => t.label || t.text).slice(0, 8);
+-
+-                        return {
+-                            name: place.name || place.title || "留ㅼ옣紐??뺤씤 遺덇?",
+-                            category: place.category || place.categoryPath?.slice(-1)[0] || "?낆쥌 ?뺣낫 ?놁쓬",
+-                            description: place.description || "",
+-                            menus: menus.length > 0 ? menus : ["硫붾돱 ?뺣낫 ?놁쓬"],
+-                            reviewKeywords: keywords.length > 0 ? keywords : ["寃?됰맂 ?ㅼ썙???놁쓬"],
+-                            photos: [],
+-                            phone: place.phone || place.tel || "",
+-                            address: place.roadAddress || place.address || "",
+-                            businessHours: bHours || place.bizHourInfo || "",
+-                            rating: place.visitorReviewScore || 0
+-                        };
+                     }
+-                } catch (e: any) {
+-                    console.error("[Crawler] JSON Parsing failed", e.message);
+                 }
+-            }
+-        }
+-        console.log("[Crawler] Cheerio extraction couldn't find valid JSON state, falling back to Puppeteer...");
+-    } catch (e: any) {
+-        console.warn("[Crawler] Cheerio extraction failed, trying Puppeteer fallback...", e.message);
+-    }
+-
+-    let browser;
+-    try {
+-        const puppeteer = (await import("puppeteer")).default;
+-        browser = await puppeteer.launch({
+-            headless: true,
+-            args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+-        });
+-        if (browser) console.log("[Crawler] Browser launched successfully");
+-        const page = await browser.newPage();
+-        await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1");
+-
+-        let name = "";
+-        let category = "";
+-        let description = "";
+-        let menus: string[] = [];
+-        let reviewKeywords: string[] = [];
+-        let phone = "";
+-        let address = "";
+-        let businessHours = "";
+-        let rating = 0;
+-
+-        // JSON ?묐떟 媛濡쒖콈湲?媛뺥솕
+-        page.on("response", async (response) => {
+-            const resUrl = response.url();
+-            const status = response.status();
+-            const contentType = response.headers()["content-type"] || "";
+-
+-            if (status === 200 && contentType.includes("json") &&
+-                (resUrl.includes("graphql") || resUrl.includes("api/search/allSearch") || resUrl.includes("place-site") || resUrl.includes("gateway"))) {
+-                try {
+-                    const json = await response.json();
+-                    const jsonArray = Array.isArray(json) ? json : [json];
+-
+-                    for (const item of jsonArray) {
+-                        // GraphQL ?묐떟 援ъ“ ???-                        const data = item?.data || item;
+-
+-                        // 1. 湲곕낯 ?뺣낫 異붿텧
+-                        const business = data.business || data.root?.place || data.place;
+-                        if (business) {
+-                            if (!name && business.name) {
+-                                name = business.name;
+-                                console.log(`[Crawler] Found name from API: ${name}`);
+-                            }
+-                            if (!category && business.category) category = business.category;
+-                            if (!description && business.description) description = business.description;
+-                            if (!phone && (business.phone || business.tel)) phone = business.phone || business.tel;
+-                            if (!address && (business.roadAddress || business.address)) address = business.roadAddress || business.address;
+-                            if (!businessHours && business.bizHourInfo) businessHours = business.bizHourInfo;
+-                            if (!rating && business.visitorReviewScore) rating = parseFloat(business.visitorReviewScore);
+-                        }
+ 
+-                        const analysisMenus = data.visitorReviewStats?.analysis?.menus || data.menuInfo?.menus;
+-                        if (analysisMenus && Array.isArray(analysisMenus) && menus.length === 0) {
+-                            menus = analysisMenus.map((m: any) => m.label || m.name || m.menu).filter(Boolean).slice(0, 5);
+-                            console.log(`[Crawler] Captured menus from API: ${menus.length} items`);
+-                        }
+-
+-                        const themes = data.visitorReviewStats?.analysis?.themes || data.visitorReviewStats?.tells;
+-                        if (themes && Array.isArray(themes) && reviewKeywords.length === 0) {
+-                            reviewKeywords = themes.map((t: any) => t.label || t.item?.name || t.text).filter(Boolean).slice(0, 8);
+-                            console.log(`[Crawler] Captured keywords from API: ${reviewKeywords.length} items`);
+-                        }
++                if (p) {
++                    data.name = data.name || p.name || p.title || p.bizName;
++                    data.category = data.category || p.category || p.businessCategory || p.categoryName || '';
++                    data.description = data.description || p.description || p.microReview || p.introduction || '';
++                    data.address = data.address || p.address || p.fullAddress || p.roadAddress || p.newAddress;
++                    data.roadAddress = data.roadAddress || p.roadAddress || p.commonAddress || '';
++                    data.phone = data.phone || p.phone || p.virtualPhone || p.tel || p.phoneNo;
++                    data.businessHours = data.businessHours || p.businessHours || p.hoursDescription || '';
++                    data.tags = [...new Set([...(data.tags || []), ...(p.tags || []), ...(p.keywords || [])])];
++                    data.reviewCount = data.reviewCount || p.visitorReviewCount || p.totalReviewCount || 0;
++                    data.reviewScore = data.reviewScore || p.visitorReviewScore || 0;
++                    data.x = String(data.x || p.x || p.longitude || '');
++                    data.y = String(data.y || p.y || p.latitude || '');
++
++                    if (p.imageUrls || p.images) {
++                        const imgs = p.imageUrls || p.images?.map((i: any) => i.url || i);
++                        data.imageUrls = [...new Set([...(data.imageUrls || []), ...imgs])];
+                     }
+-                } catch (e) { }
+-            }
+-        });
+-
+-        console.log(`[Crawler] Navigating to: ${mobileUrl}`);
+-        await page.goto(mobileUrl, { waitUntil: "networkidle2", timeout: 30000 }).catch(err => {
+-            console.log("[Crawler] Navigation timeout or error:", err.message);
+-        });
+-
+-        await new Promise((resolve) => setTimeout(resolve, 3000));
+-
+-        // DOM 湲곕컲 諛깆뾽 異붿텧 (??됲꽣 ?낅뜲?댄듃 - 2026.02 湲곗? 理쒖떊??
+-        const domData = await page.evaluate(async () => {
+-            // 1. 留ㅼ옣紐?-            let n = document.querySelector(".Fc96A, .G_678, ._3X_z6, ._3h98D, h1")?.textContent?.trim() || "";
+-            if (!n) {
+-                const headerName = document.querySelector('[role="heading"], .name_main')?.textContent?.trim();
+-                if (headerName) n = headerName;
+-            }
+-
+-            // 2. ?낆쥌
+-            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, .lnJFt, ._3it_H")?.textContent?.trim() || "";
+-
+-            // 3. 二쇱냼
+-            const addrEl = document.querySelector(".pz7wy, .LDgIH, .IHacz, .xbdPI, .PkgBl, .v_address");
+-            const addr = addrEl ? addrEl.textContent?.replace("吏?꾨낫湲?, "").replace("蹂듭궗", "").trim() : "";
+-
+-            // 4. ?꾪솕踰덊샇
+-            const telEl = document.querySelector('a[href^="tel:"], ._31_pX, .phone');
+-            const tel = telEl ? (telEl.getAttribute('href')?.replace('tel:', '') || telEl.textContent?.trim()) : "";
+-
+-            // 5. ?곸뾽?쒓컙 ?곸꽭 異붿텧 (?쇱튂湲??쒕룄)
+-            let hours = "";
+-            try {
+-                // ?쇱튂湲?踰꾪듉 李얘린 (?띿뒪?몃굹 ?대옒??湲곕컲)
+-                const expandBtn = Array.from(document.querySelectorAll('a[role="button"], .gKP9i, .RMgN0')).find(el =>
+-                    el.textContent?.includes("?곸뾽?쒓컙") || el.textContent?.includes("?곸뾽 以?) || el.querySelector('.U_7p7')
+-                ) as HTMLElement;
+-
+-                if (expandBtn) {
+-                    expandBtn.click();
+-                    await new Promise(resolve => setTimeout(resolve, 500)); // ?뚮뜑留??湲?-
+-                    // ?쇱퀜吏??붿씪蹂??뺣낫 ?섏쭛
+-                    const hourRows = document.querySelectorAll('.gKP9i, .RMgN0, .v_business_hours_row');
+-                    const hourList: string[] = [];
+-
+-                    hourRows.forEach(row => {
+-                        const day = row.querySelector('span')?.textContent?.trim();
+-                        // ?쒓컙 ?곸뿭 ?대???媛?以??댁쁺?쒓컙, 釉뚮젅?댄겕???????遺꾨━?섏뿬 ?섏쭛
+-                        const timeContainer = row.querySelector('div');
+-                        let timeText = "";
+-                        if (timeContainer) {
+-                            // 吏곸젒 ?띿뒪?몃퓧留??꾨땲???먯떇 ?붿냼?ㅼ쓽 ?띿뒪?몃? 怨듬갚?쇰줈 援щ텇?섏뿬 ?섏쭛
+-                            const children = Array.from(timeContainer.childNodes);
+-                            timeText = children.map(node => node.textContent?.trim()).filter(t => t).join(" ");
+-                        } else {
+-                            timeText = row.querySelector('._1M_6r')?.textContent?.trim() || "";
+-                        }
++                }
+ 
+-                        // ?붿씪??1~2湲?먯씠嫄곕굹 ?됱씪/二쇰쭚 媛숈? 寃쎌슦留??섏쭛 (遺덊븘?뷀븳 ?덈궡臾멸뎄 ?쒖쇅)
+-                        if (day && timeText && (day.length <= 2 || ["?됱씪", "二쇰쭚"].includes(day))) {
+-                            // "?묎린" 臾멸뎄媛 ?ы븿??寃쎌슦 ?쒓굅
+-                            let cleanTime = timeText.replace(/?묎린$/, "").trim();
+-                            // 釉뚮젅?댄겕??? ?쇱뒪?몄삤???욎뿉 以꾨컮轅?諛?媛꾧꺽 異붽? 媛??-                            cleanTime = cleanTime.replace(/(釉뚮젅?댄겕????쇱뒪?몄삤??/g, " ($1)");
+-                            hourList.push(`${day}: ${cleanTime}`);
++                // 硫붾돱 ?뺣낫 (?뺢퇋?붾맂 Apollo Cache ???
++                const menus = data.menuItems || [];
++                for (const key of Object.keys(state)) {
++                    if (key.startsWith('Menu:')) {
++                        const m = state[key];
++                        if (m.name && !menus.some(exist => exist.name === m.name)) {
++                            menus.push({ name: m.name, price: String(m.price || m.priceValue || '') });
+                         }
+-                    });
+-
+-                    if (hourList.length > 0) {
+-                        hours = hourList.join("\n");
+                     }
+                 }
+-            } catch (e) { }
++                if (menus.length > 0) data.menuItems = menus;
+ 
+-            // ?쇱튂湲??ㅽ뙣 ???뱀? ?뺣낫 ?놁쓣 ???붿빟 ?뺣낫?쇰룄 ?섏쭛
+-            if (!hours) {
+-                const timeEl = document.querySelector(".w9QyJ, ._2Ry6s, time, .gKP9i, .RMgN0");
+-                if (timeEl) hours = timeEl.textContent?.trim() || "";
++            } catch (e: any) {
++                console.warn('[Crawler][MobileWeb] Apollo parse error:', e.message);
+             }
++        }
+ 
+-            // 6. ?ㅻ챸
+-            const d = document.querySelector(".Z0_tG, ._1M_6r, ._3Hy_A, ._2yqT0, .T88S9")?.textContent?.trim() || "";
+-
+-            return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
+-        });
+-
+-        console.log("[Crawler] DOM Data extracted:", !!domData.name);
+-
+-        if (!name || name === "?ㅼ씠踰??뚮젅?댁뒪") name = domData.name || "";
+-        if (!category) category = domData.category || "";
+-        if (!description) description = domData.description || "";
+-        if (!address) address = domData.address || "";
+-        if (!phone) phone = domData.phone || "";
+-        if (!businessHours) businessHours = domData.businessHours || "";
+-
+-        // 理쒖쥌 留ㅼ옣紐?諛깆뾽 (Page Title)
+-        if (!name || name === "?ㅼ씠踰??뚮젅?댁뒪" || name === "留ㅼ옣紐??뺤씤 遺덇?") {
+-            const pageTitle = await page.title();
+-            console.log(`[Crawler] Extraction weak. Falling back to page title: ${pageTitle}`);
+-            if (pageTitle && !pageTitle.includes("?ㅼ씠踰?吏??) && !pageTitle.includes("?ㅼ씠踰??뚮젅?댁뒪")) {
+-                name = pageTitle.split(":")[0].trim();
+-            } else if (pageTitle) {
+-                name = pageTitle.replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").trim();
++        // 3. 理쒗썑???섎떒: HTML ??댄? 諛?硫뷀??쒓렇?먯꽌 ?곹샇紐낆씠?쇰룄 異붿텧
++        if (!data.name) {
++            const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/);
++            if (titleMatch) {
++                const title = titleMatch[1].replace(' : ?ㅼ씠踰?, '').replace('- ?ㅼ씠踰??뚮젅?댁뒪', '').trim();
++                data.name = title;
+             }
+         }
+ 
+-        console.log(`[Crawler] Final result: ${name}, ${category}`);
+-
+-        return {
+-            name: name || "留ㅼ옣紐??뺤씤 遺덇?",
+-            category: category || "",
+-            description: description || "",
+-            menus: menus.length > 0 ? menus : ["硫붾돱 ?뺣낫 ?놁쓬"],
+-            reviewKeywords: reviewKeywords.length > 0 ? reviewKeywords : ["寃?됰맂 ?ㅼ썙???놁쓬"],
+-            photos: [],
+-            phone: phone || "",
+-            address: address || "",
+-            businessHours: businessHours || "",
+-            rating: rating || 0
+-        };
+-    } catch (error: any) {
+-        console.error("[Crawler] Fatal error during extraction:", error.message);
+-
+-        // 釉뚮씪?곗? ?ㅽ뻾 ?ㅽ뙣 ???곸꽭 ?뺣낫瑜??꾪븳 fetch fallback (Regex 湲곕컲 異붿텧)
+-        try {
+-            console.log("[Crawler] Attempting robust fetch fallback...");
+-            const res = await fetch(mobileUrl, {
+-                headers: {
+-                    'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
++        // ?꾩꽦???곗씠??寃利?+        if (data.name) {
++            console.log(`[Crawler][MobileWeb] Successfully extracted: ${data.name}`);
++            return {
++                success: true,
++                method: 'mobile_web',
++                data: {
++                    name: data.name,
++                    category: data.category || '',
++                    description: data.description || '',
++                    address: data.address || '',
++                    roadAddress: data.roadAddress || '',
++                    phone: data.phone || '',
++                    businessHours: data.businessHours || '',
++                    imageUrls: data.imageUrls || [],
++                    menuItems: data.menuItems || [],
++                    tags: [...new Set(data.tags || [])],
++                    reviewCount: data.reviewCount || 0,
++                    reviewScore: data.reviewScore || 0,
++                    x: data.x || '',
++                    y: data.y || '',
+                 }
+-            });
+-            const html = await res.text();
+-
+-            // 1. ?대쫫 異붿텧
+-            const nameMatch = html.match(/<title>(.*?)<\/title>/) || html.match(/"name":"(.*?)"/) || html.match(/class="Fc96A">(.*?)<\/span>/);
+-            let fallbackName = nameMatch ? nameMatch[1].replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").split(":")[0].trim() : "";
+-
+-            // 2. ?낆쥌 異붿텧
+-            const categoryMatch = html.match(/"category":"(.*?)"/) || html.match(/class="DJJvD">(.*?)<\/span>/);
+-            const fallbackCategory = categoryMatch ? categoryMatch[1] : "";
+-
+-            // 3. 二쇱냼 異붿텧
+-            const addressMatch = html.match(/"address":"(.*?)"/) || html.match(/"roadAddress":"(.*?)"/);
+-            const fallbackAddress = addressMatch ? addressMatch[1] : "";
+-
+-            // 4. ?꾪솕踰덊샇 異붿텧
+-            const phoneMatch = html.match(/"phone":"(.*?)"/) || html.match(/"tel":"(.*?)"/);
+-            const fallbackPhone = phoneMatch ? phoneMatch[1] : "";
+-
+-            if (fallbackName && fallbackName !== "?ㅼ씠踰??뚮젅?댁뒪" && fallbackName !== "?ㅼ씠踰?吏??) {
+-                console.log(`[Crawler] Fetch fallback successful: ${fallbackName}`);
+-                return {
+-                    name: fallbackName,
+-                    category: fallbackCategory || "?낆쥌 ?뺣낫 ?놁쓬",
+-                    description: "",
+-                    menus: ["硫붾돱 ?뺣낫 ?놁쓬"],
+-                    reviewKeywords: ["寃?됰맂 ?ㅼ썙???놁쓬"],
+-                    photos: [],
+-                    phone: fallbackPhone || "",
+-                    address: fallbackAddress || "",
+-                    businessHours: "",
+-                    rating: 0
+-                };
+-            }
+-        } catch (e) {
+-            console.error("[Crawler] Fetch fallback also failed");
++            };
+         }
+-        return null;
+-    } finally {
+-        if (browser) await browser.close();
++
++        return { success: false, data: null, method: 'mobile_web', error: 'PARSING_FAILED', needsManualInput: true, partialData: data };
++    } catch (error: any) {
++        return { success: false, data: null, method: 'mobile_web', error: error.message };
+     }
+ }
+ 
+-/**
+- * ?ㅼ씠踰??대?吏 URL??怨좏솕吏?f800_800)濡?蹂??- */
+-function optimizeImageUrl(url: string): string {
+-    if (!url) return url;
+-    if (url.includes("search.pstatic.net")) {
+-        // f800_800 ???媛??踰붿슜?곸씤 怨좏솕吏??뚮씪誘명꽣??w800 (媛濡?800px) ?ъ슜
+-        if (url.includes("?type=") || url.includes("&type=")) {
+-            return url.replace(/type=[^&]*/, "type=w800");
+-        }
+-        return url + (url.includes("?") ? "&type=w800" : "?type=w800");
++export async function extractPlaceData(url: string): Promise<PlaceData | null> {
++    const r = await crawlNaverPlace(url);
++    if (r.success && r.data) {
++        return {
++            name: r.data.name, category: r.data.category, description: r.data.description,
++            address: r.data.address, phone: r.data.phone, businessHours: r.data.businessHours,
++            rating: r.data.reviewScore, photos: r.data.imageUrls,
++            menus: r.data.menuItems.map(m => `${m.name} (${m.price})`), reviewKeywords: r.data.tags
++        };
+     }
+-    return url;
++    return null;
++}
++
++export async function crawlNaverPlace(url: string): Promise<CrawlResult> {
++    const id = extractPlaceId(url);
++    if (!id) return { success: false, data: null, method: 'none', error: 'INVALID_URL', needsManualInput: true };
++
++    const type = getBusinessType(url);
++    return await tryMobileWeb(id, type);
+ }
+
+commit 0927746d3be567f335c2b7132e2ab5a5f6ed7656
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 11:51:23 2026 +0900
+
+    fix: ?ㅼ씠踰?李⑤떒 ?고쉶瑜??꾪븳 ?묒냽 ?ㅻ뜑 蹂닿컯
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 6afc771..9bfc0e8 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -62,8 +62,12 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+         const res = await fetch(mobileUrl, {
+             headers: {
+                 'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
++                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                 'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+-                'Cache-Control': 'no-cache'
++                'Referer': 'https://m.search.naver.com/',
++                'Cache-Control': 'no-cache',
++                'sec-ch-ua-mobile': '?1',
++                'sec-ch-ua-platform': '"iOS"'
+             }
+         });
+ 
+
+commit 7c4d24a9b90fc168078cc38d40252c04b3168fd2
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 11:43:58 2026 +0900
+
+    debug: ?щ·???뺣? 吏꾨떒 濡쒓렇 異붽?
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 4661b8f..6afc771 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -58,17 +58,25 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+ 
+     // --- 1?④퀎: Cheerio 湲곕컲 怨좊????곗씠??異붿텧 (釉뚮씪?곗? ?놁씠 ?뚯뒪 ?뚯떛) ---
+     try {
+-        console.log("[Crawler] Starting high-performance Fetch/Cheerio extraction...");
++        console.log(`[Crawler] Starting high-performance Fetch/Cheerio extraction...`);
+         const res = await fetch(mobileUrl, {
+             headers: {
+-                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
++                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
++                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
++                'Cache-Control': 'no-cache'
+             }
+         });
++
++        console.log(`[Crawler] Fetch status: ${res.status} ${res.statusText}`);
+         const html = await res.text();
++        console.log(`[Crawler] HTML length: ${html.length} bytes, Preview: ${html.substring(0, 100).replace(/\n/g, "")}`);
++
+         const $ = cheerio.load(html);
+ 
+         // ?ㅼ씠踰??뚮젅?댁뒪??__INITIAL_STATE__ ?ㅽ겕由쏀듃 ?쒓렇??嫄곗쓽 紐⑤뱺 ?뺣낫媛 ?ы븿?섏뼱 ?덉쓬
+         const scripts = $('script').toArray();
++        console.log(`[Crawler] Found ${scripts.length} script tags`);
++
+         const stateScript = scripts.find(s => {
+             const content = $(s).text() || "";
+             return content.includes('__INITIAL_STATE__') || content.includes('__APOLLO_STATE__');
+@@ -76,6 +84,7 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+ 
+         if (stateScript) {
+             const stateText = $(stateScript).text() || "";
++            console.log(`[Crawler] Found state script, length: ${stateText.length} chars`);
+             // ?뺢퇋?앹쑝濡?JSON 異붿텧 (?щ윭 蹂?섎챸 ???
+             const jsonMatch = stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*?});/) ||
+                 stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*})/);
+
+commit 8e76947e2b981410bca727ee313bda845ade6792
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 11:31:54 2026 +0900
+
+    寃곗젣 諛?媛寃??먮룞 遺꾩꽍 湲곕뒫 理쒖쥌 ?섏젙 (?곸꽭 ?곸뾽?쒓컙 ?ы븿)
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 296368b..4661b8f 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -11,6 +11,8 @@ export interface PlaceData {
+     rating?: number;
+ }
+ 
++import * as cheerio from 'cheerio';
++
+ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+     let targetUrl = url;
+ 
+@@ -54,6 +56,93 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+ 
+     console.log(`[Crawler] Final Mobile URL: ${mobileUrl}`);
+ 
++    // --- 1?④퀎: Cheerio 湲곕컲 怨좊????곗씠??異붿텧 (釉뚮씪?곗? ?놁씠 ?뚯뒪 ?뚯떛) ---
++    try {
++        console.log("[Crawler] Starting high-performance Fetch/Cheerio extraction...");
++        const res = await fetch(mobileUrl, {
++            headers: {
++                'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
++            }
++        });
++        const html = await res.text();
++        const $ = cheerio.load(html);
++
++        // ?ㅼ씠踰??뚮젅?댁뒪??__INITIAL_STATE__ ?ㅽ겕由쏀듃 ?쒓렇??嫄곗쓽 紐⑤뱺 ?뺣낫媛 ?ы븿?섏뼱 ?덉쓬
++        const scripts = $('script').toArray();
++        const stateScript = scripts.find(s => {
++            const content = $(s).text() || "";
++            return content.includes('__INITIAL_STATE__') || content.includes('__APOLLO_STATE__');
++        });
++
++        if (stateScript) {
++            const stateText = $(stateScript).text() || "";
++            // ?뺢퇋?앹쑝濡?JSON 異붿텧 (?щ윭 蹂?섎챸 ???
++            const jsonMatch = stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*?});/) ||
++                stateText.match(/window\.__[A-Z0-9_]+_STATE__\s*=\s*({[\s\S]*})/);
++
++            const jsonText = jsonMatch ? jsonMatch[1] : null;
++
++            if (jsonText) {
++                try {
++                    const state = JSON.parse(jsonText);
++                    // 1. __INITIAL_STATE__ 諛⑹떇 (湲곗〈)
++                    let place = state.place?.rootData?.place || state.place?.place || state.placeDetail?.rootData?.place;
++
++                    // 2. __APOLLO_STATE__ 諛⑹떇 (?좉퇋)
++                    if (!place) {
++                        const placeKey = Object.keys(state).find(k => k.startsWith('Place:')) ||
++                            Object.keys(state).find(k => k.startsWith('BusinessBase:'));
++                        if (placeKey) {
++                            place = state[placeKey];
++                            console.log(`[Crawler] Found data in Apollo state with key: ${placeKey}`);
++                        }
++                    }
++
++                    if (place) {
++                        console.log(`[Crawler] Successfully parsed state for: ${place.name || place.title}`);
++
++                        // ?곸꽭 ?곸뾽?쒓컙 議곕┰
++                        let bHours = "";
++                        const bizHours = place.bizHour || place.businessHours?.bizHours || place.bizHourInfo;
++                        if (Array.isArray(bizHours)) {
++                            bHours = bizHours.map((h: any) => {
++                                const day = h.day || h.type;
++                                let time = h.businessTime || h.time || "";
++                                if (h.breakTime) time += ` (釉뚮젅?댄겕???${h.breakTime})`;
++                                if (h.lastOrder) time += ` (?쇱뒪?몄삤??${h.lastOrder})`;
++                                return `${day}: ${time}`;
++                            }).join("\n");
++                        } else if (typeof bizHours === 'string') {
++                            bHours = bizHours;
++                        }
++
++                        // 硫붾돱/?ㅼ썙??異붿텧
++                        const menus = (place.menuInfo?.menus || []).map((m: any) => m.name || m.label).slice(0, 5);
++                        const keywords = (place.visitorReviewStats?.analysis?.themes || []).map((t: any) => t.label || t.text).slice(0, 8);
++
++                        return {
++                            name: place.name || place.title || "留ㅼ옣紐??뺤씤 遺덇?",
++                            category: place.category || place.categoryPath?.slice(-1)[0] || "?낆쥌 ?뺣낫 ?놁쓬",
++                            description: place.description || "",
++                            menus: menus.length > 0 ? menus : ["硫붾돱 ?뺣낫 ?놁쓬"],
++                            reviewKeywords: keywords.length > 0 ? keywords : ["寃?됰맂 ?ㅼ썙???놁쓬"],
++                            photos: [],
++                            phone: place.phone || place.tel || "",
++                            address: place.roadAddress || place.address || "",
++                            businessHours: bHours || place.bizHourInfo || "",
++                            rating: place.visitorReviewScore || 0
++                        };
++                    }
++                } catch (e: any) {
++                    console.error("[Crawler] JSON Parsing failed", e.message);
++                }
++            }
++        }
++        console.log("[Crawler] Cheerio extraction couldn't find valid JSON state, falling back to Puppeteer...");
++    } catch (e: any) {
++        console.warn("[Crawler] Cheerio extraction failed, trying Puppeteer fallback...", e.message);
++    }
++
+     let browser;
+     try {
+         const puppeteer = (await import("puppeteer")).default;
+
+commit 9f409839ac442b281bb62357834a369d0648f14c
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 10:21:09 2026 +0900
+
+    寃곗젣 諛?媛寃??먮룞 遺꾩꽍 湲곕뒫 理쒖쥌 ?섏젙 (?곸꽭 ?곸뾽?쒓컙 ?ы븿)
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index e2b2483..296368b 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -31,19 +31,29 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+ 
+     // 2. 紐⑤컮??URL濡?蹂??(紐⑤컮???섏씠吏媛 ?곗씠??異붿텧?????⑹씠??
+     let mobileUrl = targetUrl;
+-    const placeIdMatch = targetUrl.match(/place\/(\d+)/);
+-    if (placeIdMatch && placeIdMatch[1]) {
++
++    // URL?먯꽌 留ㅼ옣 ID 異붿텧 ?쒕룄 (?ㅼ뼇???⑦꽩 ???
++    const placeIdMatch = targetUrl.match(/place\/(\d+)/) || targetUrl.match(/id=(\d+)/) || targetUrl.match(/\/(\d+)\//);
++
++    if (placeIdMatch && placeIdMatch[1] && placeIdMatch[1].length >= 6) {
+         mobileUrl = `https://m.place.naver.com/place/${placeIdMatch[1]}/home`;
++        console.log(`[Crawler] Target ID identified: ${placeIdMatch[1]}`);
+     } else {
+         mobileUrl = targetUrl.replace("map.naver.com", "m.place.naver.com");
+         if (!mobileUrl.includes("m.place.naver.com")) {
+-            // 湲고? ?뺥깭 ???-            if (mobileUrl.includes("naver.com") && !mobileUrl.includes("m.place")) {
+-                // ?뱀젙 ?뚮씪誘명꽣??寃쎈줈 泥섎━ 濡쒖쭅 異붽? 媛??+            // 二쇱냼媛 蹂?섎릺吏 ?딆븯?????섎룞 蹂댁젙
++            if (mobileUrl.includes("map.naver.com/p/")) {
++                const parts = mobileUrl.split("/");
++                const id = parts.find(p => /^\d+$/.test(p));
++                if (id) {
++                    mobileUrl = `https://m.place.naver.com/place/${id}/home`;
++                }
+             }
+         }
+     }
+ 
++    console.log(`[Crawler] Final Mobile URL: ${mobileUrl}`);
++
+     let browser;
+     try {
+         const puppeteer = (await import("puppeteer")).default;
+@@ -119,33 +129,79 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+ 
+         await new Promise((resolve) => setTimeout(resolve, 3000));
+ 
+-        // DOM 湲곕컲 諛깆뾽 異붿텧 (??됲꽣 ?낅뜲?댄듃)
++        // DOM 湲곕컲 諛깆뾽 異붿텧 (??됲꽣 ?낅뜲?댄듃 - 2026.02 湲곗? 理쒖떊??
+         const domData = await page.evaluate(async () => {
+-            const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+-
+-            // ?대쫫 ??됲꽣 (?ㅼ씠踰??뚮젅?댁뒪 紐⑤컮??理쒖떊 湲곗?)
+-            let n = document.querySelector(".Fc96A, .G_678, ._3X_z6, h1")?.textContent?.trim() || "";
++            // 1. 留ㅼ옣紐?+            let n = document.querySelector(".Fc96A, .G_678, ._3X_z6, ._3h98D, h1")?.textContent?.trim() || "";
++            if (!n) {
++                const headerName = document.querySelector('[role="heading"], .name_main')?.textContent?.trim();
++                if (headerName) n = headerName;
++            }
+ 
+-            // ?낆쥌/移댄뀒怨좊━
+-            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, .lnJFt")?.textContent?.trim() || "";
++            // 2. ?낆쥌
++            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, .lnJFt, ._3it_H")?.textContent?.trim() || "";
+ 
+-            // 二쇱냼
+-            const addrEl = document.querySelector(".pz7wy, .LDgIH, .IHacz, .xbdPI");
+-            const addr = addrEl ? addrEl.textContent?.trim() : "";
++            // 3. 二쇱냼
++            const addrEl = document.querySelector(".pz7wy, .LDgIH, .IHacz, .xbdPI, .PkgBl, .v_address");
++            const addr = addrEl ? addrEl.textContent?.replace("吏?꾨낫湲?, "").replace("蹂듭궗", "").trim() : "";
+ 
+-            // ?꾪솕踰덊샇
+-            const telEl = document.querySelector('a[href^="tel:"]');
+-            const tel = telEl ? telEl.getAttribute('href')?.replace('tel:', '') : "";
++            // 4. ?꾪솕踰덊샇
++            const telEl = document.querySelector('a[href^="tel:"], ._31_pX, .phone');
++            const tel = telEl ? (telEl.getAttribute('href')?.replace('tel:', '') || telEl.textContent?.trim()) : "";
+ 
+-            // ?곸뾽?쒓컙
++            // 5. ?곸뾽?쒓컙 ?곸꽭 異붿텧 (?쇱튂湲??쒕룄)
+             let hours = "";
+-            const timeEl = document.querySelector(".w9QyJ, ._2Ry6s, time");
+-            if (timeEl) {
+-                hours = timeEl.textContent?.trim() || "";
++            try {
++                // ?쇱튂湲?踰꾪듉 李얘린 (?띿뒪?몃굹 ?대옒??湲곕컲)
++                const expandBtn = Array.from(document.querySelectorAll('a[role="button"], .gKP9i, .RMgN0')).find(el =>
++                    el.textContent?.includes("?곸뾽?쒓컙") || el.textContent?.includes("?곸뾽 以?) || el.querySelector('.U_7p7')
++                ) as HTMLElement;
++
++                if (expandBtn) {
++                    expandBtn.click();
++                    await new Promise(resolve => setTimeout(resolve, 500)); // ?뚮뜑留??湲?+
++                    // ?쇱퀜吏??붿씪蹂??뺣낫 ?섏쭛
++                    const hourRows = document.querySelectorAll('.gKP9i, .RMgN0, .v_business_hours_row');
++                    const hourList: string[] = [];
++
++                    hourRows.forEach(row => {
++                        const day = row.querySelector('span')?.textContent?.trim();
++                        // ?쒓컙 ?곸뿭 ?대???媛?以??댁쁺?쒓컙, 釉뚮젅?댄겕???????遺꾨━?섏뿬 ?섏쭛
++                        const timeContainer = row.querySelector('div');
++                        let timeText = "";
++                        if (timeContainer) {
++                            // 吏곸젒 ?띿뒪?몃퓧留??꾨땲???먯떇 ?붿냼?ㅼ쓽 ?띿뒪?몃? 怨듬갚?쇰줈 援щ텇?섏뿬 ?섏쭛
++                            const children = Array.from(timeContainer.childNodes);
++                            timeText = children.map(node => node.textContent?.trim()).filter(t => t).join(" ");
++                        } else {
++                            timeText = row.querySelector('._1M_6r')?.textContent?.trim() || "";
++                        }
++
++                        // ?붿씪??1~2湲?먯씠嫄곕굹 ?됱씪/二쇰쭚 媛숈? 寃쎌슦留??섏쭛 (遺덊븘?뷀븳 ?덈궡臾멸뎄 ?쒖쇅)
++                        if (day && timeText && (day.length <= 2 || ["?됱씪", "二쇰쭚"].includes(day))) {
++                            // "?묎린" 臾멸뎄媛 ?ы븿??寃쎌슦 ?쒓굅
++                            let cleanTime = timeText.replace(/?묎린$/, "").trim();
++                            // 釉뚮젅?댄겕??? ?쇱뒪?몄삤???욎뿉 以꾨컮轅?諛?媛꾧꺽 異붽? 媛??+                            cleanTime = cleanTime.replace(/(釉뚮젅?댄겕????쇱뒪?몄삤??/g, " ($1)");
++                            hourList.push(`${day}: ${cleanTime}`);
++                        }
++                    });
++
++                    if (hourList.length > 0) {
++                        hours = hourList.join("\n");
++                    }
++                }
++            } catch (e) { }
++
++            // ?쇱튂湲??ㅽ뙣 ???뱀? ?뺣낫 ?놁쓣 ???붿빟 ?뺣낫?쇰룄 ?섏쭛
++            if (!hours) {
++                const timeEl = document.querySelector(".w9QyJ, ._2Ry6s, time, .gKP9i, .RMgN0");
++                if (timeEl) hours = timeEl.textContent?.trim() || "";
+             }
+ 
+-            // ?ㅻ챸
+-            const d = document.querySelector(".Z0_tG, ._1M_6r, ._3Hy_A")?.textContent?.trim() || "";
++            // 6. ?ㅻ챸
++            const d = document.querySelector(".Z0_tG, ._1M_6r, ._3Hy_A, ._2yqT0, .T88S9")?.textContent?.trim() || "";
+ 
+             return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
+         });
+@@ -187,29 +243,46 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+     } catch (error: any) {
+         console.error("[Crawler] Fatal error during extraction:", error.message);
+ 
+-        // 釉뚮씪?곗? ?ㅽ뻾 ?ㅽ뙣 ??理쒖냼?쒖쓽 ?뺣낫瑜??꾪븳 fetch fallback
++        // 釉뚮씪?곗? ?ㅽ뻾 ?ㅽ뙣 ???곸꽭 ?뺣낫瑜??꾪븳 fetch fallback (Regex 湲곕컲 異붿텧)
+         try {
+-            console.log("[Crawler] Attempting lightweight fetch fallback...");
+-            const res = await fetch(targetUrl);
+-            const html = await res.text();
+-            const titleMatch = html.match(/<title>(.*?)<\/title>/);
+-            if (titleMatch && titleMatch[1]) {
+-                const name = titleMatch[1].replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").split(":")[0].trim();
+-                if (name && name !== "?ㅼ씠踰??뚮젅?댁뒪" && name !== "?ㅼ씠踰?吏??) {
+-                    console.log(`[Crawler] Fetch fallback successful: ${name}`);
+-                    return {
+-                        name,
+-                        category: "",
+-                        description: "",
+-                        menus: ["硫붾돱 ?뺣낫 ?놁쓬"],
+-                        reviewKeywords: ["寃?됰맂 ?ㅼ썙???놁쓬"],
+-                        photos: [],
+-                        phone: "",
+-                        address: "",
+-                        businessHours: "",
+-                        rating: 0
+-                    };
++            console.log("[Crawler] Attempting robust fetch fallback...");
++            const res = await fetch(mobileUrl, {
++                headers: {
++                    'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+                 }
++            });
++            const html = await res.text();
++
++            // 1. ?대쫫 異붿텧
++            const nameMatch = html.match(/<title>(.*?)<\/title>/) || html.match(/"name":"(.*?)"/) || html.match(/class="Fc96A">(.*?)<\/span>/);
++            let fallbackName = nameMatch ? nameMatch[1].replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").split(":")[0].trim() : "";
++
++            // 2. ?낆쥌 異붿텧
++            const categoryMatch = html.match(/"category":"(.*?)"/) || html.match(/class="DJJvD">(.*?)<\/span>/);
++            const fallbackCategory = categoryMatch ? categoryMatch[1] : "";
++
++            // 3. 二쇱냼 異붿텧
++            const addressMatch = html.match(/"address":"(.*?)"/) || html.match(/"roadAddress":"(.*?)"/);
++            const fallbackAddress = addressMatch ? addressMatch[1] : "";
++
++            // 4. ?꾪솕踰덊샇 異붿텧
++            const phoneMatch = html.match(/"phone":"(.*?)"/) || html.match(/"tel":"(.*?)"/);
++            const fallbackPhone = phoneMatch ? phoneMatch[1] : "";
++
++            if (fallbackName && fallbackName !== "?ㅼ씠踰??뚮젅?댁뒪" && fallbackName !== "?ㅼ씠踰?吏??) {
++                console.log(`[Crawler] Fetch fallback successful: ${fallbackName}`);
++                return {
++                    name: fallbackName,
++                    category: fallbackCategory || "?낆쥌 ?뺣낫 ?놁쓬",
++                    description: "",
++                    menus: ["硫붾돱 ?뺣낫 ?놁쓬"],
++                    reviewKeywords: ["寃?됰맂 ?ㅼ썙???놁쓬"],
++                    photos: [],
++                    phone: fallbackPhone || "",
++                    address: fallbackAddress || "",
++                    businessHours: "",
++                    rating: 0
++                };
+             }
+         } catch (e) {
+             console.error("[Crawler] Fetch fallback also failed");
+
+commit cdfd7bae373a9dd51b494f197f01c4c8d6e6d8aa
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 09:55:51 2026 +0900
+
+    媛寃?遺꾩꽍 湲곕뒫 諛?寃곗젣 ?ㅻ쪟 ?섏젙
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 011b7c9..e2b2483 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -21,8 +21,11 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+             const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+             targetUrl = res.url;
+             console.log(`[Crawler] Resolved to: ${targetUrl}`);
+-        } catch (e) {
+-            console.error("[Crawler] URL Resolution failed", e);
++            if (!targetUrl.includes("place")) {
++                console.warn("[Crawler] Resolved URL might be incorrect (no 'place' in URL)");
++            }
++        } catch (e: any) {
++            console.error("[Crawler] URL Resolution failed", e.message);
+         }
+     }
+ 
+@@ -48,6 +51,7 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+             headless: true,
+             args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+         });
++        if (browser) console.log("[Crawler] Browser launched successfully");
+         const page = await browser.newPage();
+         await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1");
+ 
+@@ -80,7 +84,10 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+                         // 1. 湲곕낯 ?뺣낫 異붿텧
+                         const business = data.business || data.root?.place || data.place;
+                         if (business) {
+-                            if (!name && business.name) name = business.name;
++                            if (!name && business.name) {
++                                name = business.name;
++                                console.log(`[Crawler] Found name from API: ${name}`);
++                            }
+                             if (!category && business.category) category = business.category;
+                             if (!description && business.description) description = business.description;
+                             if (!phone && (business.phone || business.tel)) phone = business.phone || business.tel;
+@@ -89,28 +96,27 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+                             if (!rating && business.visitorReviewScore) rating = parseFloat(business.visitorReviewScore);
+                         }
+ 
+-                        // 2. 硫붾돱 ?뺣낫
+                         const analysisMenus = data.visitorReviewStats?.analysis?.menus || data.menuInfo?.menus;
+                         if (analysisMenus && Array.isArray(analysisMenus) && menus.length === 0) {
+                             menus = analysisMenus.map((m: any) => m.label || m.name || m.menu).filter(Boolean).slice(0, 5);
++                            console.log(`[Crawler] Captured menus from API: ${menus.length} items`);
+                         }
+ 
+-                        // 3. 由щ럭 ?ㅼ썙??                         const themes = data.visitorReviewStats?.analysis?.themes || data.visitorReviewStats?.tells;
+                         if (themes && Array.isArray(themes) && reviewKeywords.length === 0) {
+                             reviewKeywords = themes.map((t: any) => t.label || t.item?.name || t.text).filter(Boolean).slice(0, 8);
++                            console.log(`[Crawler] Captured keywords from API: ${reviewKeywords.length} items`);
+                         }
+                     }
+                 } catch (e) { }
+             }
+         });
+ 
+-        // ??꾩븘???됰꼮???ㅼ젙
++        console.log(`[Crawler] Navigating to: ${mobileUrl}`);
+         await page.goto(mobileUrl, { waitUntil: "networkidle2", timeout: 30000 }).catch(err => {
+-            console.log("[Crawler] Navigation timeout or error, continuing with fallback:", err.message);
++            console.log("[Crawler] Navigation timeout or error:", err.message);
+         });
+ 
+-        // 異붽? ?뚮뜑留??湲?         await new Promise((resolve) => setTimeout(resolve, 3000));
+ 
+         // DOM 湲곕컲 諛깆뾽 異붿텧 (??됲꽣 ?낅뜲?댄듃)
+@@ -144,6 +150,8 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+             return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
+         });
+ 
++        console.log("[Crawler] DOM Data extracted:", !!domData.name);
++
+         if (!name || name === "?ㅼ씠踰??뚮젅?댁뒪") name = domData.name || "";
+         if (!category) category = domData.category || "";
+         if (!description) description = domData.description || "";
+@@ -154,6 +162,7 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+         // 理쒖쥌 留ㅼ옣紐?諛깆뾽 (Page Title)
+         if (!name || name === "?ㅼ씠踰??뚮젅?댁뒪" || name === "留ㅼ옣紐??뺤씤 遺덇?") {
+             const pageTitle = await page.title();
++            console.log(`[Crawler] Extraction weak. Falling back to page title: ${pageTitle}`);
+             if (pageTitle && !pageTitle.includes("?ㅼ씠踰?吏??) && !pageTitle.includes("?ㅼ씠踰??뚮젅?댁뒪")) {
+                 name = pageTitle.split(":")[0].trim();
+             } else if (pageTitle) {
+@@ -161,6 +170,8 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+             }
+         }
+ 
++        console.log(`[Crawler] Final result: ${name}, ${category}`);
++
+         return {
+             name: name || "留ㅼ옣紐??뺤씤 遺덇?",
+             category: category || "",
+@@ -173,8 +184,36 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+             businessHours: businessHours || "",
+             rating: rating || 0
+         };
+-    } catch (error) {
+-        console.error("Place extraction error:", error);
++    } catch (error: any) {
++        console.error("[Crawler] Fatal error during extraction:", error.message);
++
++        // 釉뚮씪?곗? ?ㅽ뻾 ?ㅽ뙣 ??理쒖냼?쒖쓽 ?뺣낫瑜??꾪븳 fetch fallback
++        try {
++            console.log("[Crawler] Attempting lightweight fetch fallback...");
++            const res = await fetch(targetUrl);
++            const html = await res.text();
++            const titleMatch = html.match(/<title>(.*?)<\/title>/);
++            if (titleMatch && titleMatch[1]) {
++                const name = titleMatch[1].replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").split(":")[0].trim();
++                if (name && name !== "?ㅼ씠踰??뚮젅?댁뒪" && name !== "?ㅼ씠踰?吏??) {
++                    console.log(`[Crawler] Fetch fallback successful: ${name}`);
++                    return {
++                        name,
++                        category: "",
++                        description: "",
++                        menus: ["硫붾돱 ?뺣낫 ?놁쓬"],
++                        reviewKeywords: ["寃?됰맂 ?ㅼ썙???놁쓬"],
++                        photos: [],
++                        phone: "",
++                        address: "",
++                        businessHours: "",
++                        rating: 0
++                    };
++                }
++            }
++        } catch (e) {
++            console.error("[Crawler] Fetch fallback also failed");
++        }
+         return null;
+     } finally {
+         if (browser) await browser.close();
+
+commit dce39e661863b7310be748014c1e8e6b86a1c144
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 09:50:27 2026 +0900
+
+    媛寃?遺꾩꽍 湲곕뒫 諛?寃곗젣 ?ㅻ쪟 ?섏젙
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+index 168b18d..011b7c9 100644
+--- a/src/lib/place-crawler.ts
++++ b/src/lib/place-crawler.ts
+@@ -12,13 +12,33 @@ export interface PlaceData {
+ }
+ 
+ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+-    // 紐⑤컮??URL ?뱀? PC URL ???ㅼ뼇???뺥깭 ???(怨좎쑀 ID 異붿텧)
+-    let mobileUrl = url;
+-    const placeIdMatch = url.match(/place\/(\d+)/);
++    let targetUrl = url;
++
++    // 1. ?⑥텞 URL (naver.me) ?닿껐
++    if (url.includes("naver.me")) {
++        try {
++            console.log(`[Crawler] Resolving short URL: ${url}`);
++            const res = await fetch(url, { method: 'HEAD', redirect: 'follow' });
++            targetUrl = res.url;
++            console.log(`[Crawler] Resolved to: ${targetUrl}`);
++        } catch (e) {
++            console.error("[Crawler] URL Resolution failed", e);
++        }
++    }
++
++    // 2. 紐⑤컮??URL濡?蹂??(紐⑤컮???섏씠吏媛 ?곗씠??異붿텧?????⑹씠??
++    let mobileUrl = targetUrl;
++    const placeIdMatch = targetUrl.match(/place\/(\d+)/);
+     if (placeIdMatch && placeIdMatch[1]) {
+         mobileUrl = `https://m.place.naver.com/place/${placeIdMatch[1]}/home`;
+     } else {
+-        mobileUrl = url.replace("map.naver.com", "m.place.naver.com").replace("naver.me", "m.place.naver.com");
++        mobileUrl = targetUrl.replace("map.naver.com", "m.place.naver.com");
++        if (!mobileUrl.includes("m.place.naver.com")) {
++            // 湲고? ?뺥깭 ???+            if (mobileUrl.includes("naver.com") && !mobileUrl.includes("m.place")) {
++                // ?뱀젙 ?뚮씪誘명꽣??寃쎈줈 泥섎━ 濡쒖쭅 異붽? 媛??+            }
++        }
+     }
+ 
+     let browser;
+@@ -26,10 +46,10 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+         const puppeteer = (await import("puppeteer")).default;
+         browser = await puppeteer.launch({
+             headless: true,
+-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
++            args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+         });
+         const page = await browser.newPage();
+-        await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1");
++        await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1");
+ 
+         let name = "";
+         let category = "";
+@@ -41,158 +61,102 @@ export async function extractPlaceData(url: string): Promise<PlaceData | null> {
+         let businessHours = "";
+         let rating = 0;
+ 
++        // JSON ?묐떟 媛濡쒖콈湲?媛뺥솕
+         page.on("response", async (response) => {
+             const resUrl = response.url();
+             const status = response.status();
+             const contentType = response.headers()["content-type"] || "";
+ 
+-            if (status === 200 && contentType.includes("json") && (resUrl.includes("graphql") || resUrl.includes("api/search/allSearch") || resUrl.includes("place-site"))) {
++            if (status === 200 && contentType.includes("json") &&
++                (resUrl.includes("graphql") || resUrl.includes("api/search/allSearch") || resUrl.includes("place-site") || resUrl.includes("gateway"))) {
+                 try {
+                     const json = await response.json();
+                     const jsonArray = Array.isArray(json) ? json : [json];
+ 
+                     for (const item of jsonArray) {
+-                        const data = item?.data;
+-                        if (!data) continue;
+-
+-                        // 1. 湲곕낯 ?뺣낫 (business)
+-                        if (data.business) {
+-                            if (!name && data.business.name) name = data.business.name;
+-                            if (!category && data.business.category) category = data.business.category;
+-                            if (!description && data.business.description) description = data.business.description;
+-                            if (!phone && data.business.phone) phone = data.business.phone;
+-                            if (!address && data.business.roadAddress) address = data.business.roadAddress;
+-                            if (!businessHours && data.business.bizHourInfo) businessHours = data.business.bizHourInfo;
+-                            if (!rating && data.business.visitorReviewScore) rating = parseFloat(data.business.visitorReviewScore);
++                        // GraphQL ?묐떟 援ъ“ ???+                        const data = item?.data || item;
++
++                        // 1. 湲곕낯 ?뺣낫 異붿텧
++                        const business = data.business || data.root?.place || data.place;
++                        if (business) {
++                            if (!name && business.name) name = business.name;
++                            if (!category && business.category) category = business.category;
++                            if (!description && business.description) description = business.description;
++                            if (!phone && (business.phone || business.tel)) phone = business.phone || business.tel;
++                            if (!address && (business.roadAddress || business.address)) address = business.roadAddress || business.address;
++                            if (!businessHours && business.bizHourInfo) businessHours = business.bizHourInfo;
++                            if (!rating && business.visitorReviewScore) rating = parseFloat(business.visitorReviewScore);
+                         }
+ 
+-                        // 2. 硫붾돱 ?뺣낫 (analysis.menus 媛 媛???뺥솗??
+-                        const analysisMenus = data.visitorReviewStats?.analysis?.menus;
++                        // 2. 硫붾돱 ?뺣낫
++                        const analysisMenus = data.visitorReviewStats?.analysis?.menus || data.menuInfo?.menus;
+                         if (analysisMenus && Array.isArray(analysisMenus) && menus.length === 0) {
+-                            menus = analysisMenus.map((m: any) => m.label).filter((t: any) => t).slice(0, 5);
++                            menus = analysisMenus.map((m: any) => m.label || m.name || m.menu).filter(Boolean).slice(0, 5);
+                         }
+ 
+-                        // 援щ쾭??諛깆뾽 硫붾돱 ?뺣낫
+-                        if (data.menuInfo?.menus && menus.length === 0) {
+-                            menus = data.menuInfo.menus.map((m: any) => m.name || m.menu || "").filter((t: any) => t).slice(0, 5);
+-                        }
+-
+-                        // 3. 由щ럭 ?ㅼ썙??(analysis.themes 媛 ?뺥솗??
+-                        const themes = data.visitorReviewStats?.analysis?.themes;
++                        // 3. 由щ럭 ?ㅼ썙??+                        const themes = data.visitorReviewStats?.analysis?.themes || data.visitorReviewStats?.tells;
+                         if (themes && Array.isArray(themes) && reviewKeywords.length === 0) {
+-                            reviewKeywords = themes.map((t: any) => t.label).filter((v: any) => v).slice(0, 8);
+-                        }
+-
+-                        // 援щ쾭??由щ럭 ?ㅼ썙??諛깆뾽
+-                        if (data.visitorReviewStats?.tells && reviewKeywords.length === 0) {
+-                            reviewKeywords = data.visitorReviewStats.tells.map((t: any) => t.item?.name || t.text || "").filter((t: any) => t).slice(0, 8);
+-                        }
+-                    }
+-
+-                    // allSearch API ?묐떟 援ъ“ ???-                    if (json && json.result && json.result.place) {
+-                        const place = json.result.place;
+-                        if (!name && place.name) name = place.name;
+-                        if (!category && place.category) category = place.category;
+-                        if (!description && place.description) description = place.description;
+-                        if (!phone && place.phone) phone = place.phone;
+-                        if (!address && place.roadAddress) address = place.roadAddress;
+-
+-                        // rating logic for allSearch
+-                        if (!rating && place.rating) rating = parseFloat(place.rating);
+-
+-                        if (place.menus && place.menus.length > 0 && menus.length === 0) {
+-                            if (Array.isArray(place.menus)) {
+-                                menus = place.menus.map((m: any) => m.name || m.menu || "").filter((t: string) => t).slice(0, 5);
+-                            } else if (typeof place.menus === 'string') {
+-                                menus = place.menus.split(',').map((m: string) => m.trim()).filter((t: string) => t).slice(0, 5);
+-                            }
++                            reviewKeywords = themes.map((t: any) => t.label || t.item?.name || t.text).filter(Boolean).slice(0, 8);
+                         }
+                     }
+                 } catch (e) { }
+             }
+         });
+ 
+-        await page.goto(mobileUrl, { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {
+-            console.log("?섏씠吏 濡쒕뵫 ??꾩븘???꾨떖 (異붿텧 怨꾩냽 吏꾪뻾)");
++        // ??꾩븘???됰꼮???ㅼ젙
++        await page.goto(mobileUrl, { waitUntil: "networkidle2", timeout: 30000 }).catch(err => {
++            console.log("[Crawler] Navigation timeout or error, continuing with fallback:", err.message);
+         });
+ 
+-        // ?곗씠?곌? 異⑸텇??媛濡쒖콈吏??뚭퉴吏 ?좎떆 ?湲?-        await new Promise((resolve) => setTimeout(resolve, 5000));
++        // 異붽? ?뚮뜑留??湲?+        await new Promise((resolve) => setTimeout(resolve, 3000));
+ 
+-        // DOM 諛깆뾽 異붿텧 異붽? (?대쫫, 移댄뀒怨좊━, 二쇱냼, ?꾪솕踰덊샇, ?곸뾽?쒓컙 ??
++        // DOM 湲곕컲 諛깆뾽 異붿텧 (??됲꽣 ?낅뜲?댄듃)
+         const domData = await page.evaluate(async () => {
+             const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+ 
+-            // 1. ?대쫫
+-            let n = document.querySelector("h1")?.textContent?.trim() || "";
+-            if (!n || n === "?ㅼ씠踰??뚮젅?댁뒪" || n === "?뚮젅?댁뒪") {
+-                n = document.querySelector(".Fc96A, .G_678, ._3X_z6, .SP_09, ._3X_z6")?.textContent?.trim() || "";
+-            }
++            // ?대쫫 ??됲꽣 (?ㅼ씠踰??뚮젅?댁뒪 紐⑤컮??理쒖떊 湲곗?)
++            let n = document.querySelector(".Fc96A, .G_678, ._3X_z6, h1")?.textContent?.trim() || "";
+ 
+-            // 2. 移댄뀒怨좊━
+-            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, ._279_U, .z79_U, .lnJFt")?.textContent?.trim() || "";
++            // ?낆쥌/移댄뀒怨좊━
++            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, .lnJFt")?.textContent?.trim() || "";
+ 
+-            // 3. 二쇱냼 (?꾨줈紐?二쇱냼瑜??곗꽑 ?쒖쐞濡?
+-            const addrEl = document.querySelector(".pz7wy, a.PkgBl span, .LDgIH, .IHacz, .xbdPI");
++            // 二쇱냼
++            const addrEl = document.querySelector(".pz7wy, .LDgIH, .IHacz, .xbdPI");
+             const addr = addrEl ? addrEl.textContent?.trim() : "";
+ 
+-            // 4. ?꾪솕踰덊샇
++            // ?꾪솕踰덊샇
+             const telEl = document.querySelector('a[href^="tel:"]');
+             const tel = telEl ? telEl.getAttribute('href')?.replace('tel:', '') : "";
+ 
+-            // 5. ?곸뾽?쒓컙 (?쇱퀜蹂닿린 ?대┃ 諛??됱씪 ?쒓컙 異붿텧)
++            // ?곸뾽?쒓컙
+             let hours = "";
+-            const expandBtn = document.querySelector('a.gKP9i, a._2p67S, a.RMgN0') as HTMLElement;
+-            if (expandBtn) {
+-                if (expandBtn.getAttribute('aria-expanded') === 'false') {
+-                    expandBtn.click();
+-                    await wait(500); // 吏㏐쾶 ?湲?-                }
+-
+-                // ?됱씪(??湲? 以??섎굹瑜?李얠븘???쒓컙 異붿텧
+-                const rows = Array.from(document.querySelectorAll('.w9QyJ, ._2Ry6s, ._2p67S ._2Ry6s'));
+-                const weekdayRow = rows.find(row => {
+-                    const day = row.querySelector('.i8cJw, ._3_3Sh')?.textContent || '';
+-                    return ['??, '??, '??, '紐?, '湲?].some(d => day.includes(d));
+-                });
+-
+-                if (weekdayRow) {
+-                    const timeEl = weekdayRow.querySelector('.H3ua4, ._2Ry6s');
+-                    if (timeEl) {
+-                        // 泥?以?硫붿씤 ?쒓컙)留?媛?몄삤湲?(釉뚮젅?댄겕????쒖쇅)
+-                        hours = timeEl.textContent?.split('\n')[0].trim() || "";
+-                    }
+-                }
+-
+-                // ?ъ쟾???놁쑝硫?踰꾪듉 ?띿뒪?몃씪??-                if (!hours) hours = expandBtn.textContent?.trim() || "";
+-            }
+-
+-            if (!hours) {
+-                const timeEl = document.querySelector('time');
+-                if (timeEl) {
+-                    hours = timeEl.parentElement?.textContent?.trim() || timeEl.textContent?.trim() || "";
+-                }
++            const timeEl = document.querySelector(".w9QyJ, ._2Ry6s, time");
++            if (timeEl) {
++                hours = timeEl.textContent?.trim() || "";
+             }
+ 
+-            // 6. ?ㅻ챸
+-            const d = document.querySelector(".Z0_tG, ._1M_6r")?.textContent?.trim() || "";
++            // ?ㅻ챸
++            const d = document.querySelector(".Z0_tG, ._1M_6r, ._3Hy_A")?.textContent?.trim() || "";
+ 
+             return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
+         });
+ 
+-        if (!name && domData.name && domData.name !== "?ㅼ씠踰??뚮젅?댁뒪") name = domData.name;
+-        if (!category) category = domData.category;
+-        if (!description) description = domData.description;
++        if (!name || name === "?ㅼ씠踰??뚮젅?댁뒪") name = domData.name || "";
++        if (!category) category = domData.category || "";
++        if (!description) description = domData.description || "";
+         if (!address) address = domData.address || "";
+         if (!phone) phone = domData.phone || "";
+         if (!businessHours) businessHours = domData.businessHours || "";
+ 
+-        // ?ъ쟾???대쫫???놁쑝硫???댄??먯꽌 異붿텧 ?쒕룄
+-        if (!name || name === "留ㅼ옣紐??뺤씤 遺덇?" || name === "?ㅼ씠踰??뚮젅?댁뒪") {
++        // 理쒖쥌 留ㅼ옣紐?諛깆뾽 (Page Title)
++        if (!name || name === "?ㅼ씠踰??뚮젅?댁뒪" || name === "留ㅼ옣紐??뺤씤 遺덇?") {
+             const pageTitle = await page.title();
+-            if (pageTitle && pageTitle !== "?ㅼ씠踰??뚮젅?댁뒪") {
++            if (pageTitle && !pageTitle.includes("?ㅼ씠踰?吏??) && !pageTitle.includes("?ㅼ씠踰??뚮젅?댁뒪")) {
++                name = pageTitle.split(":")[0].trim();
++            } else if (pageTitle) {
+                 name = pageTitle.replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").trim();
+             }
+         }
+
+commit ee9539fb6189ab212a03302dfd21fa41b0fe63d9
+Author: cromir74 <mir3862@naver.com>
+Date:   Fri Feb 27 04:03:56 2026 +0900
+
+    留덉??낆슂??珥덇린 諛고룷
+
+diff --git a/src/lib/place-crawler.ts b/src/lib/place-crawler.ts
+new file mode 100644
+index 0000000..168b18d
+--- /dev/null
++++ b/src/lib/place-crawler.ts
+@@ -0,0 +1,233 @@
++export interface PlaceData {
++    name: string;
++    category: string;
++    description: string;
++    menus: string[];
++    reviewKeywords: string[];
++    photos: string[];
++    phone?: string;
++    address?: string;
++    businessHours?: string;
++    rating?: number;
++}
++
++export async function extractPlaceData(url: string): Promise<PlaceData | null> {
++    // 紐⑤컮??URL ?뱀? PC URL ???ㅼ뼇???뺥깭 ???(怨좎쑀 ID 異붿텧)
++    let mobileUrl = url;
++    const placeIdMatch = url.match(/place\/(\d+)/);
++    if (placeIdMatch && placeIdMatch[1]) {
++        mobileUrl = `https://m.place.naver.com/place/${placeIdMatch[1]}/home`;
++    } else {
++        mobileUrl = url.replace("map.naver.com", "m.place.naver.com").replace("naver.me", "m.place.naver.com");
++    }
++
++    let browser;
++    try {
++        const puppeteer = (await import("puppeteer")).default;
++        browser = await puppeteer.launch({
++            headless: true,
++            args: ["--no-sandbox", "--disable-setuid-sandbox"],
++        });
++        const page = await browser.newPage();
++        await page.setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1");
++
++        let name = "";
++        let category = "";
++        let description = "";
++        let menus: string[] = [];
++        let reviewKeywords: string[] = [];
++        let phone = "";
++        let address = "";
++        let businessHours = "";
++        let rating = 0;
++
++        page.on("response", async (response) => {
++            const resUrl = response.url();
++            const status = response.status();
++            const contentType = response.headers()["content-type"] || "";
++
++            if (status === 200 && contentType.includes("json") && (resUrl.includes("graphql") || resUrl.includes("api/search/allSearch") || resUrl.includes("place-site"))) {
++                try {
++                    const json = await response.json();
++                    const jsonArray = Array.isArray(json) ? json : [json];
++
++                    for (const item of jsonArray) {
++                        const data = item?.data;
++                        if (!data) continue;
++
++                        // 1. 湲곕낯 ?뺣낫 (business)
++                        if (data.business) {
++                            if (!name && data.business.name) name = data.business.name;
++                            if (!category && data.business.category) category = data.business.category;
++                            if (!description && data.business.description) description = data.business.description;
++                            if (!phone && data.business.phone) phone = data.business.phone;
++                            if (!address && data.business.roadAddress) address = data.business.roadAddress;
++                            if (!businessHours && data.business.bizHourInfo) businessHours = data.business.bizHourInfo;
++                            if (!rating && data.business.visitorReviewScore) rating = parseFloat(data.business.visitorReviewScore);
++                        }
++
++                        // 2. 硫붾돱 ?뺣낫 (analysis.menus 媛 媛???뺥솗??
++                        const analysisMenus = data.visitorReviewStats?.analysis?.menus;
++                        if (analysisMenus && Array.isArray(analysisMenus) && menus.length === 0) {
++                            menus = analysisMenus.map((m: any) => m.label).filter((t: any) => t).slice(0, 5);
++                        }
++
++                        // 援щ쾭??諛깆뾽 硫붾돱 ?뺣낫
++                        if (data.menuInfo?.menus && menus.length === 0) {
++                            menus = data.menuInfo.menus.map((m: any) => m.name || m.menu || "").filter((t: any) => t).slice(0, 5);
++                        }
++
++                        // 3. 由щ럭 ?ㅼ썙??(analysis.themes 媛 ?뺥솗??
++                        const themes = data.visitorReviewStats?.analysis?.themes;
++                        if (themes && Array.isArray(themes) && reviewKeywords.length === 0) {
++                            reviewKeywords = themes.map((t: any) => t.label).filter((v: any) => v).slice(0, 8);
++                        }
++
++                        // 援щ쾭??由щ럭 ?ㅼ썙??諛깆뾽
++                        if (data.visitorReviewStats?.tells && reviewKeywords.length === 0) {
++                            reviewKeywords = data.visitorReviewStats.tells.map((t: any) => t.item?.name || t.text || "").filter((t: any) => t).slice(0, 8);
++                        }
++                    }
++
++                    // allSearch API ?묐떟 援ъ“ ???+                    if (json && json.result && json.result.place) {
++                        const place = json.result.place;
++                        if (!name && place.name) name = place.name;
++                        if (!category && place.category) category = place.category;
++                        if (!description && place.description) description = place.description;
++                        if (!phone && place.phone) phone = place.phone;
++                        if (!address && place.roadAddress) address = place.roadAddress;
++
++                        // rating logic for allSearch
++                        if (!rating && place.rating) rating = parseFloat(place.rating);
++
++                        if (place.menus && place.menus.length > 0 && menus.length === 0) {
++                            if (Array.isArray(place.menus)) {
++                                menus = place.menus.map((m: any) => m.name || m.menu || "").filter((t: string) => t).slice(0, 5);
++                            } else if (typeof place.menus === 'string') {
++                                menus = place.menus.split(',').map((m: string) => m.trim()).filter((t: string) => t).slice(0, 5);
++                            }
++                        }
++                    }
++                } catch (e) { }
++            }
++        });
++
++        await page.goto(mobileUrl, { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {
++            console.log("?섏씠吏 濡쒕뵫 ??꾩븘???꾨떖 (異붿텧 怨꾩냽 吏꾪뻾)");
++        });
++
++        // ?곗씠?곌? 異⑸텇??媛濡쒖콈吏??뚭퉴吏 ?좎떆 ?湲?+        await new Promise((resolve) => setTimeout(resolve, 5000));
++
++        // DOM 諛깆뾽 異붿텧 異붽? (?대쫫, 移댄뀒怨좊━, 二쇱냼, ?꾪솕踰덊샇, ?곸뾽?쒓컙 ??
++        const domData = await page.evaluate(async () => {
++            const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
++
++            // 1. ?대쫫
++            let n = document.querySelector("h1")?.textContent?.trim() || "";
++            if (!n || n === "?ㅼ씠踰??뚮젅?댁뒪" || n === "?뚮젅?댁뒪") {
++                n = document.querySelector(".Fc96A, .G_678, ._3X_z6, .SP_09, ._3X_z6")?.textContent?.trim() || "";
++            }
++
++            // 2. 移댄뀒怨좊━
++            let c = document.querySelector(".DJJvD, ._3ocDE, .Y_G_X, ._279_U, .z79_U, .lnJFt")?.textContent?.trim() || "";
++
++            // 3. 二쇱냼 (?꾨줈紐?二쇱냼瑜??곗꽑 ?쒖쐞濡?
++            const addrEl = document.querySelector(".pz7wy, a.PkgBl span, .LDgIH, .IHacz, .xbdPI");
++            const addr = addrEl ? addrEl.textContent?.trim() : "";
++
++            // 4. ?꾪솕踰덊샇
++            const telEl = document.querySelector('a[href^="tel:"]');
++            const tel = telEl ? telEl.getAttribute('href')?.replace('tel:', '') : "";
++
++            // 5. ?곸뾽?쒓컙 (?쇱퀜蹂닿린 ?대┃ 諛??됱씪 ?쒓컙 異붿텧)
++            let hours = "";
++            const expandBtn = document.querySelector('a.gKP9i, a._2p67S, a.RMgN0') as HTMLElement;
++            if (expandBtn) {
++                if (expandBtn.getAttribute('aria-expanded') === 'false') {
++                    expandBtn.click();
++                    await wait(500); // 吏㏐쾶 ?湲?+                }
++
++                // ?됱씪(??湲? 以??섎굹瑜?李얠븘???쒓컙 異붿텧
++                const rows = Array.from(document.querySelectorAll('.w9QyJ, ._2Ry6s, ._2p67S ._2Ry6s'));
++                const weekdayRow = rows.find(row => {
++                    const day = row.querySelector('.i8cJw, ._3_3Sh')?.textContent || '';
++                    return ['??, '??, '??, '紐?, '湲?].some(d => day.includes(d));
++                });
++
++                if (weekdayRow) {
++                    const timeEl = weekdayRow.querySelector('.H3ua4, ._2Ry6s');
++                    if (timeEl) {
++                        // 泥?以?硫붿씤 ?쒓컙)留?媛?몄삤湲?(釉뚮젅?댄겕????쒖쇅)
++                        hours = timeEl.textContent?.split('\n')[0].trim() || "";
++                    }
++                }
++
++                // ?ъ쟾???놁쑝硫?踰꾪듉 ?띿뒪?몃씪??+                if (!hours) hours = expandBtn.textContent?.trim() || "";
++            }
++
++            if (!hours) {
++                const timeEl = document.querySelector('time');
++                if (timeEl) {
++                    hours = timeEl.parentElement?.textContent?.trim() || timeEl.textContent?.trim() || "";
++                }
++            }
++
++            // 6. ?ㅻ챸
++            const d = document.querySelector(".Z0_tG, ._1M_6r")?.textContent?.trim() || "";
++
++            return { name: n, category: c, description: d, address: addr, phone: tel, businessHours: hours };
++        });
++
++        if (!name && domData.name && domData.name !== "?ㅼ씠踰??뚮젅?댁뒪") name = domData.name;
++        if (!category) category = domData.category;
++        if (!description) description = domData.description;
++        if (!address) address = domData.address || "";
++        if (!phone) phone = domData.phone || "";
++        if (!businessHours) businessHours = domData.businessHours || "";
++
++        // ?ъ쟾???대쫫???놁쑝硫???댄??먯꽌 異붿텧 ?쒕룄
++        if (!name || name === "留ㅼ옣紐??뺤씤 遺덇?" || name === "?ㅼ씠踰??뚮젅?댁뒪") {
++            const pageTitle = await page.title();
++            if (pageTitle && pageTitle !== "?ㅼ씠踰??뚮젅?댁뒪") {
++                name = pageTitle.replace(" - ?ㅼ씠踰??뚮젅?댁뒪", "").trim();
++            }
++        }
++
++        return {
++            name: name || "留ㅼ옣紐??뺤씤 遺덇?",
++            category: category || "",
++            description: description || "",
++            menus: menus.length > 0 ? menus : ["硫붾돱 ?뺣낫 ?놁쓬"],
++            reviewKeywords: reviewKeywords.length > 0 ? reviewKeywords : ["寃?됰맂 ?ㅼ썙???놁쓬"],
++            photos: [],
++            phone: phone || "",
++            address: address || "",
++            businessHours: businessHours || "",
++            rating: rating || 0
++        };
++    } catch (error) {
++        console.error("Place extraction error:", error);
++        return null;
++    } finally {
++        if (browser) await browser.close();
++    }
++}
++
++/**
++ * ?ㅼ씠踰??대?吏 URL??怨좏솕吏?f800_800)濡?蹂??+ */
++function optimizeImageUrl(url: string): string {
++    if (!url) return url;
++    if (url.includes("search.pstatic.net")) {
++        // f800_800 ???媛??踰붿슜?곸씤 怨좏솕吏??뚮씪誘명꽣??w800 (媛濡?800px) ?ъ슜
++        if (url.includes("?type=") || url.includes("&type=")) {
++            return url.replace(/type=[^&]*/, "type=w800");
++        }
++        return url + (url.includes("?") ? "&type=w800" : "?type=w800");
++    }
++    return url;
++}

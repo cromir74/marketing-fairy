@@ -91,9 +91,26 @@ function ContentCreatePageContent() {
                     .select("*")
                     .eq("user_id", user.id)
                     .single();
+                // 1. 기본 매장 정보 설정
                 setStore(data);
 
-                // 재사용 로직 추가
+                // 2. 가입 시 저장된 플레이스 정보가 있다면 자동으로 분석 결과 설정
+                if (data.naver_place_id || data.place_url) {
+                    // 데이터베이스에 이미 분석된 데이터가 필드로 있다면 세팅 (가정: store 테이블에 관련 필드 확장)
+                    // 현재는 세션 내에서 placeData로 관리하므로, 초기 로드 시 store 정보를 placeData 포맷으로 변환해 세팅
+                    if (data.name) {
+                        setPlaceData({
+                            name: data.name,
+                            category: data.category,
+                            reviewKeywords: data.atmosphere ? data.atmosphere.split(",").map((s: string) => s.trim()) : [],
+                            menus: data.main_products ? data.main_products.split(",").map((s: string) => s.trim()) : [],
+                            location: data.location
+                        });
+                        setPlaceUrl(data.place_url || "");
+                    }
+                }
+
+                // 3. 재사용 로직 추가
                 const url = new URL(window.location.href);
                 const reuseId = url.searchParams.get("reuseId");
                 if (reuseId) {
@@ -173,20 +190,20 @@ function ContentCreatePageContent() {
         setSuggesting(false);
     }
 
-    // 플레이스 분석 핸들러
-    const handleAnalyzePlace = async () => {
-        if (!placeUrl || (!placeUrl.includes("naver.com") && !placeUrl.includes("naver.me"))) {
-            alert("올바른 네이버 플레이스 URL을 입력해주세요.");
+    // 플레이스 재분석(리셋) 핸들러
+    const handleResetPlaceAnalysis = async () => {
+        const urlToAnalyze = placeUrl || store?.place_url;
+        if (!urlToAnalyze || (!urlToAnalyze.includes("naver.com") && !urlToAnalyze.includes("naver.me"))) {
+            alert("연동된 네이버 플레이스 정보가 없습니다. 가게 관리에서 먼저 등록해주세요.");
             return;
         }
 
         setIsAnalyzing(true);
-        setPlaceData(null);
         try {
             const res = await fetch("/api/place/extract", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: placeUrl }),
+                body: JSON.stringify({ url: urlToAnalyze }),
             });
             const data = await res.json();
             if (res.ok) {
@@ -194,6 +211,9 @@ function ContentCreatePageContent() {
                 // 분석된 정보를 바탕으로 주제 자동 설정
                 const suggestedTopic = `[${data.name}] ${data.reviewKeywords.slice(0, 3).join(", ")} 특징을 살린 포스팅`;
                 setTopic(suggestedTopic);
+
+                // 필요 시 DB 업데이트 로직 추가 가능 (현재는 세션 내 갱신)
+                alert("매장 최신 정보를 성공적으로 불러왔습니다.");
             } else {
                 alert(data.error || "분석 중 오류가 발생했습니다.");
             }
@@ -481,196 +501,75 @@ function ContentCreatePageContent() {
                 </Card>
             )}
 
-            {/* NEW: 플레이스 URL 분석 섹션 */}
-            <section className="rounded-3xl border-2 border-primary-100 bg-gradient-to-br from-primary-50/50 to-white p-6 shadow-sm overflow-hidden relative">
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
-                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-100 rounded-full blur-3xl opacity-50 pointer-events-none" />
+            {/* 매장 프로필 기반 분석 섹션 (자동 연동) */}
+            <section className="rounded-3xl border border-primary-100 bg-white p-6 shadow-sm overflow-hidden relative">
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary-50 rounded-full blur-3xl opacity-30 pointer-events-none" />
 
-                <div className="relative z-10 flex flex-col md:flex-row gap-5 items-start md:items-end">
-                    <div className="flex-1 w-full space-y-2">
-                        <label className="text-sm font-bold text-primary-900 flex items-center gap-2">
-                            <span className="p-1.5 bg-primary-100 rounded-lg">
-                                <LinkIcon className="h-4 w-4 text-primary-600" />
-                            </span>
-                            플레이스 URL 분석으로 시작하기
-                        </label>
-                        <p className="text-xs text-gray-500 font-medium pl-1 mb-2">
-                            네이버 플레이스 주소를 넣으면 알아서 매장 특징, 메뉴, 리뷰 키워드를 분석해 글감을 제안합니다.
-                        </p>
-                        <div className="relative flex group shadow-sm transition-shadow hover:shadow-md rounded-xl">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-primary-50 rounded-lg">
+                                <ShieldCheck className="h-4 w-4 text-primary-600" />
                             </div>
-                            <input
-                                type="url"
-                                value={placeUrl}
-                                onChange={(e) => setPlaceUrl(e.target.value)}
-                                placeholder="예: https://map.naver.com/p/search/..."
-                                className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-l-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all text-sm font-medium"
-                                disabled={isAnalyzing}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && !isAnalyzing) {
-                                        e.preventDefault();
-                                        handleAnalyzePlace();
-                                    }
-                                }}
-                            />
-                            <Button
-                                onClick={handleAnalyzePlace}
-                                disabled={isAnalyzing || !placeUrl}
-                                className="rounded-l-none rounded-r-xl bg-primary-600 hover:bg-primary-700 h-auto py-3 px-6 shadow-inner font-bold"
-                            >
-                                {isAnalyzing ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                        분석 중...
-                                    </>
-                                ) : (
-                                    <>
-                                        분석하기
-                                    </>
-                                )}
-                            </Button>
+                            <h2 className="text-lg font-bold text-gray-900">매장 분석 프로필</h2>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">자동 연동됨</span>
                         </div>
+                        <p className="text-xs text-gray-500 font-medium pl-1">
+                            가입 시 분석된 매장 정보를 바탕으로 {platform === 'instagram' ? '인스타그램' : '스레드'} 글을 작성합니다.
+                        </p>
                     </div>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleResetPlaceAnalysis}
+                        disabled={isAnalyzing}
+                        className="text-[11px] h-8 bg-white hover:bg-gray-50 text-gray-400 hover:text-primary-600 border-gray-100 hover:border-primary-200 transition-all gap-1.5 rounded-full"
+                    >
+                        {isAnalyzing ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                            <RefreshCw className="h-3 w-3" />
+                        )}
+                        매장 정보 동기화
+                    </Button>
                 </div>
 
-                {/* 분석 결과 카드 */}
+                {/* 분석 결과 간략 표시 */}
                 {placeData && (
-                    <div className="mt-6 animate-in zoom-in-95 duration-300">
-                        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 bg-emerald-100 rounded-lg">
-                                        <Info className="h-4 w-4 text-emerald-600" />
-                                    </div>
-                                    <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                                        분석 결과
-                                        <span className="text-xs font-medium bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                                            {placeData.category}
+                    <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-500">
+                        <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded">분위기 & 특징</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {placeData.reviewKeywords && placeData.reviewKeywords.length > 0 ? (
+                                    placeData.reviewKeywords.map((k: string, i: number) => (
+                                        <span key={i} className="text-[11px] font-bold text-gray-600 bg-white border border-gray-100 px-2 py-0.5 rounded-md">
+                                            #{k}
                                         </span>
-                                    </h4>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setPlaceData(null)}
-                                    className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 rounded-full"
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-
-                            <div className="space-y-4 text-sm bg-white/60 p-4 rounded-xl border border-emerald-50 backdrop-blur-sm">
-                                <div className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-2 items-start">
-                                    <span className="font-bold text-gray-500 mt-0.5">매장명</span>
-                                    <span className="font-bold text-gray-900">{placeData.name}</span>
-                                </div>
-
-                                {placeData.photos && placeData.photos.length > 0 && (
-                                    <div className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-2 items-start">
-                                        <span className="font-bold text-gray-500 mt-1">매장 사진</span>
-                                        <div className="flex flex-wrap gap-2">
-                                            {placeData.photos.map((photo: string, i: number) => {
-                                                const isSelected = images.some(img => img.preview === photo);
-                                                return (
-                                                    <div
-                                                        key={i}
-                                                        className={`relative cursor-pointer group rounded-lg overflow-hidden border-2 transition-all ${isSelected ? "border-primary-500 ring-2 ring-primary-100" : "border-transparent hover:border-gray-200"
-                                                            }`}
-                                                        onClick={() => {
-                                                            if (isSelected) {
-                                                                setImages(prev => prev.filter(img => img.preview !== photo));
-                                                            } else {
-                                                                if (images.length >= 10) {
-                                                                    alert("최대 10장까지 선택 가능합니다.");
-                                                                    return;
-                                                                }
-                                                                setImages(prev => [...prev, { preview: photo, base64: "", mimeType: "image/jpeg" }]);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <img src={photo} alt={`매장 사진 ${i}`} className="w-16 h-16 object-cover" />
-                                                        {isSelected && (
-                                                            <div className="absolute inset-0 bg-primary-500/20 flex items-center justify-center">
-                                                                <Check className="h-5 w-5 text-white drop-shadow-md" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {placeData.menus && placeData.menus.length > 0 && (
-                                    <div className="relative">
-                                        <div className={!checkAccess("place_deep_analysis") ? "filter blur-[8px] pointer-events-none select-none" : ""}>
-                                            <div className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-2 items-start">
-                                                <span className="font-bold text-gray-500 mt-1">주요 메뉴</span>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {placeData.menus.map((menu: string, i: number) => (
-                                                        <span key={i} className="bg-gray-100 text-gray-700 px-2.5 py-1 rounded-md font-medium text-xs">
-                                                            {menu}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {placeData.reviewKeywords && placeData.reviewKeywords.length > 0 && (
-                                    <div className="relative">
-                                        <div className={!checkAccess("place_deep_analysis") ? "filter blur-[8px] pointer-events-none select-none" : ""}>
-                                            <div className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-2 items-start">
-                                                <span className="font-bold text-gray-500 mt-1 flex items-center gap-1">
-                                                    리뷰 반응 <Sparkles className="h-3 w-3 text-amber-400" />
-                                                </span>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {placeData.reviewKeywords.map((keyword: string, i: number) => (
-                                                        <span key={i} className="bg-amber-50 text-amber-700 border border-amber-100 px-2.5 py-1 rounded-full font-bold text-xs">
-                                                            #{keyword}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Pro 전용 블러 오버레이 */}
-                                        {!checkAccess("place_deep_analysis") && (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-                                                <Lock className="h-6 w-6 text-indigo-500 mb-2" />
-                                                <p className="text-xs font-bold text-indigo-700">Pro 플랜에서 심화 분석을 확인하세요</p>
-                                                <Button
-                                                    size="sm"
-                                                    className="mt-2 h-7 text-[10px] bg-indigo-600 hover:bg-indigo-700 rounded-lg px-3"
-                                                    onClick={() => {
-                                                        setUpgradeTrigger('deep_analysis');
-                                                        setShowUpgradePopup(true);
-                                                    }}
-                                                >
-                                                    업그레이드
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-gray-400 italic">분석된 키워드가 없습니다.</span>
                                 )}
                             </div>
+                        </div>
 
-                            {checkAccess("place_deep_analysis") && (
-                                <div className="mt-4 flex justify-end">
-                                    <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="h-8 text-xs bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-none group transition-all auto-flex gap-1.5"
-                                        onClick={() => setTopic(`[${placeData.name}] ${placeData.reviewKeywords.slice(0, 3).join(", ")} 특징을 살린 포스팅`)}
-                                    >
-                                        <Check className="h-3 w-3 group-hover:scale-110 transition-transform" />
-                                        이 정보로 글쓰기 주제 업데이트
-                                    </Button>
-                                </div>
-                            )}
+                        <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100/50">
+                            <div className="flex items-center gap-2 mb-3">
+                                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">대표 메뉴</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {placeData.menus && placeData.menus.length > 0 ? (
+                                    placeData.menus.map((m: string, i: number) => (
+                                        <span key={i} className="text-[11px] font-medium text-gray-600 bg-white border border-gray-100 px-2 py-0.5 rounded-md">
+                                            {m}
+                                        </span>
+                                    ))
+                                ) : (
+                                    <span className="text-xs text-gray-400 italic">등록된 메뉴가 없습니다.</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
