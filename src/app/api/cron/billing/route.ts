@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
             .from("subscriptions")
             .select("*")
             .eq("status", "active")
-            .ilike("current_period_end", `${today}%`)
+            .gte("current_period_end", `${today}T00:00:00Z`)
+            .lt("current_period_end", `${today}T23:59:59Z`)
             .not("billing_key", "is", null);
 
         if (queryError) {

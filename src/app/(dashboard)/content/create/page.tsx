@@ -95,7 +95,7 @@ function ContentCreatePageContent() {
                 setStore(data);
 
                 // 2. 가입 시 저장된 플레이스 정보가 있다면 자동으로 분석 결과 설정
-                if (data.naver_place_id || data.place_url) {
+                if (data && (data.naver_place_id || data.place_url)) {
                     // 데이터베이스에 이미 분석된 데이터가 필드로 있다면 세팅 (가정: store 테이블에 관련 필드 확장)
                     // 현재는 세션 내에서 placeData로 관리하므로, 초기 로드 시 store 정보를 placeData 포맷으로 변환해 세팅
                     if (data.name) {
