@@ -78,28 +78,34 @@ export async function generateMarketingContent(
 - **오늘의 핵심 타겟**: ${context.targetPersona || "모두"}
 ` : "";
 
-    const prompt = `당신은 ${categoryPersona[storeInfo.category] || "소상공인 사장님"}의 페르소나를 가진 마케팅 작가입니다.
+    const prompt = `너는 소상공인 사장님의 ${platform === 'instagram' ? '인스타그램' : '스레드'} 계정을 대신 운영하는 마케팅 전문가야.
+절대 광고 대행사가 쓴 것 같은 홍보 문구를 쓰지 마.
+사장님이 가게 안에서 손님한테 직접 말하는 것처럼 써.
 
-[가게 정보]
-- 가게명: ${storeInfo.name}
-- 업종: ${storeInfo.category} (${categoryPersona[storeInfo.category] || ""})
-- 주요 메뉴/서비스: ${storeInfo.mainProducts}
-- 가게 분위기: ${storeInfo.atmosphere}
-- **강조할 말투(톤앤매너)**: ${storeInfo.tone} (${toneMap[storeInfo.tone] || ""})
+[글쓰기 규칙]
+1. 첫 문장: 타깃 페르소나가 공감할 질문이나 상황 묘사로 시작 (예: "퇴근길에 뭐 먹을지 고민되는 날 있잖아요")
+2. 본문: 아래 중 하나의 형식으로 작성
+   - 정보형: 오늘의 추천 메뉴 + 왜 추천하는지 (재료, 조리법, 꿀조합)
+   - 비하인드형: 재료 입고, 조리 과정, 사장님의 메뉴 개발 이야기
+   - 꿀팁형: "이 메뉴는 이렇게 먹으면 더 맛있어요" 같은 먹는 법 안내
+3. 톤앤매너: **${toneMap[storeInfo.tone] || "친근하게"}** 말투 유지 (반말/존댓말은 매장 분위기에 맞춤). 이모지는 3개 이하. 감탄사 남발 금지.
+4. 해시태그: 핵심 5~7개만. [지역명+맛집], [메뉴명], [상황태그] 위주.
+5. 절대 쓰지 말 것: "미식여행", "소중한 시간", "달콤하게 만들어 드릴게요", "행복한 추억", "소중한 분들", "보내드리고 싶어요" 같은 뻔하고 진부한 홍보 표현 금지.
+6. 글 길이: 4~6문장. 짧고 임팩트 있게.
 
-[요청]
-주제: "${topic}"
-${contextSection}
-${images && images.length > 0 ? "★중요: 사진 속의 구체적인 특징을 단순히 나열하지 말고, 사장님이 그 찰나에 느꼈던 '개인적인 감상'이나 '준비 과정의 디테일'을 섞어서 생생하게 녹여주세요." : ""}
+[활용할 매장 데이터]
+- 매장명: ${storeInfo.name}
+- 분위기/특징 키워드: ${storeInfo.atmosphere}
+- 대표 메뉴: ${storeInfo.mainProducts}
+- 오늘 날씨: ${context?.weather || "정보 없음"}
+- 오늘 요일/시간대: ${context?.dayOfWeek || ""} ${context?.timeContext || ""}
+- 타깃 페르소나: ${context?.targetPersona || "모두"}
+- 주제: ${topic}
 
-${platformGuide[platform]}
-
-★필독 주의사항 (인간미 극대화):
-1. **상황 및 타겟 맞춤**: ${context?.targetPersona ? `오늘의 타겟인 '${context.targetPersona}'의 눈높이와 고민을 정확히 짚어주세요.` : ""} ${context?.weather ? `현재 날씨 '${context.weather}'의 감성을 글 전체에 자연스럽게 녹여주세요.` : ""}
-2. **말투 준수**: ${toneMap[storeInfo.tone] || "친근하게 대화하듯 작성하세요."} 특히 딱딱한 "~합니다"만 반복하는 로봇 같은 어투는 절대 피하세요.
-4. **불필요한 설명 배제**: 답변의 시작부터 끝까지 오직 게시물 본문만 작성하세요. AI의 자기소개나 분석 결과는 절대 포함하지 마세요.
-5. **어휘 다양성**: 특정 키워드나 동일한 단어가 5번 이상 반복되는 것을 엄격히 금지합니다. 유의어를 적극 활용해 읽는 재미가 있고 피로감이 없는 문장을 만드세요.
-6. 사장님의 진심과 그 업종만의 전문성이 느껴지는 따뜻한 말투로 작성해줘.`;
+[요구사항]
+- 플랫폼: ${platform === 'instagram' ? '인스타그램 (Instagram)' : '스레드 (Threads)'}
+- ${images && images.length > 0 ? "★중요: 첨부된 사진의 특징을 분석해서 글 내용에 자연스럽게 녹여줘." : ""}
+- 출력 형식: 글 본문만 출력. 제목이나 설명 붙이지 마.`;
 
     console.log("[Gemini] Generating marketing content (Model: gemini-2.5-flash)...");
 
