@@ -151,8 +151,16 @@ export async function generateMarketingContent(
 ■ 검증 8: 선택지/메뉴판 나열 금지
 "A 또는 B" 형태로 표현 후보를 나열하지 마. 메뉴를 3개 이상 연속 나열하지 마.
 
+■ 검증 9: 페르소나 노출 금지
+글 안에 타깃 페르소나를 직접 언급하는 단어(MZ, 커플, 직장인, 육아맘, 학생, 1인 가구, 반려동물 등)가 있으면 삭제하고 상황/톤으로 대체.
+
 [검증 순서]
-생성 → 검증1~8 순서대로 → 하나라도 실패 시 해당 문장 수정 → 전부 통과 시 출력`;
+생성 → 검증1~9 순서대로 → 하나라도 실패 시 해당 문장 수정 → 전부 통과 시 출력`;
+
+    const personaInstruction = `[페르소나 적용 규칙]
+타깃 페르소나는 글의 톤, 소재, 상황 설정에만 반영해. 글 속에서 타깃을 직접 언급하거나 호명하지 마.
+- ❌ "MZ세대 손님들이 특히 많이 시키더라고요", "커플분들께 추천드려요", "직장인 분들의 퇴근길 힐링"
+- ✅ 타깃에 맞는 상황(퇴근길, 데이트, 혼밥 등)과 소재(가성비, 분위기, 1인분 등)로 자연스럽게 녹여.`;
 
     // ★ 인스타그램 프롬프트
     const instagramPrompt = `[역할]
@@ -171,6 +179,8 @@ export async function generateMarketingContent(
 - 메뉴/서비스 3개 이상 연속 나열
 
 ${industryGuide}
+
+${personaInstruction}
 
 [글 유형: ${postType === "A" ? "유형 A - 일반형" : "유형 B - 정보형"}]
 ${postType === "A" ? `- 길이: 4~6문장
@@ -224,6 +234,8 @@ ${validationChecklist}
 - 메뉴/서비스 3개 이상 연속 나열
 
 ${industryGuide}
+
+${personaInstruction}
 
 [글 유형: ${postType === "A" ? "유형 A - 일반형" : "유형 B - 정보형"}]
 ${postType === "A" ? `- 길이: 3~5문장, 최대 300자
