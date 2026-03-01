@@ -20,16 +20,14 @@ export async function GET(request: NextRequest) {
         }
 
         const data = await response.json();
-        const projectInfo = data.project;
 
-        // JSON2Video status code 체크 (0: success, -1: error, 1: rendering)
-        const status = projectInfo?.movie?.success === true ? "done" : "rendering";
-        const videoUrl = projectInfo?.movie?.url || null;
+        const status = data.movie?.status === "done" ? "done" :
+            data.movie?.status === "error" ? "error" : "rendering";
+        const videoUrl = data.movie?.url || null;
 
         return NextResponse.json({
             status,
-            videoUrl,
-            projectData: projectInfo
+            videoUrl
         });
     } catch (error: any) {
         console.error("Reels Status Check Error:", error);
