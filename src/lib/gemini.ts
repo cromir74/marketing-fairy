@@ -78,8 +78,13 @@ export async function generateMarketingContent(
 - **오늘의 핵심 타겟**: ${context.targetPersona || "모두"}
 ` : "";
 
-    // 글 유형 선정 (주제나 상황에 따라 시스템이 판단할 수 있으나, 여기서는 랜덤 또는 가중치를 두어 제안)
-    const postType = Math.random() > 0.8 ? "B" : "A"; // 20% 확률로 정보형 선정
+    // 한국 시간(KST) 기준 요일 계산 (0: 일, 1: 월, ..., 3: 수, ..., 6: 토)
+    const now = new Date();
+    const kstDate = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const day = kstDate.getUTCDay();
+
+    // 수요일(3), 토요일(6)은 유형 B (정보형), 나머지는 유형 A (일반형)
+    const postType = (day === 3 || day === 6) ? "B" : "A";
 
     const instagramPrompt = `마케팅 요정 인스타그램 글 생성 프롬프트 (최종 통합본)
 
