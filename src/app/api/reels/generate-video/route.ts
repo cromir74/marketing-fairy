@@ -56,11 +56,19 @@ export async function POST(request: NextRequest) {
             ] : []
         };
 
+        const apiKey = process.env.JSON2VIDEO_API_KEY;
+        if (!apiKey) {
+            console.error("Critical: JSON2VIDEO_API_KEY is missing from environment variables.");
+            return NextResponse.json({
+                error: "서버 설정 문제: 비디오 API 키를 찾을 수 없습니다. 관리자에게 문의하세요."
+            }, { status: 500 });
+        }
+
         const response = await fetch("https://api.json2video.com/v2/movies", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "x-api-key": process.env.JSON2VIDEO_API_KEY || ""
+                "x-api-key": apiKey
             },
             body: JSON.stringify(json2videoPayload)
         });

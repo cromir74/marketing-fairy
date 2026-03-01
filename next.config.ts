@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
             },
         ],
     },
+    // Fix for workspace root detection on server
+    outputFileTracingRoot: process.env.NODE_ENV === 'production' ? '/root/marketing-fairy' : undefined,
 };
 
 export default nextConfig;
