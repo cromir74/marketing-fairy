@@ -20,11 +20,13 @@ export async function POST(request: NextRequest) {
             height: 1920,
             quality: "high",
             scenes: slides.map((slide: any, index: number) => ({
-                background: {
-                    type: "image",
-                    src: uploadedImageUrls[index] || uploadedImageUrls[0] // Fallback to first image
-                },
+                duration: slide.duration || 3,
                 elements: [
+                    {
+                        type: "image",
+                        src: uploadedImageUrls[index] || uploadedImageUrls[0],
+                        duration: slide.duration || 3
+                    },
                     {
                         type: "text",
                         style: "001",
@@ -43,8 +45,7 @@ export async function POST(request: NextRequest) {
                         y: "75%",
                         duration: slide.duration || 3
                     }
-                ],
-                duration: slide.duration || 3
+                ]
             })),
             elements: selectedBgmUrl ? [
                 {
