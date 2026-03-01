@@ -190,36 +190,41 @@ function ContentCreatePageContent() {
         setSuggesting(false);
     }
 
-    // 플레이스 재분석(리셋) 핸들러
+    // 매장 정보 최신화(DB에서 다시 불러오기) 핸들러
     const handleResetPlaceAnalysis = async () => {
-        const urlToAnalyze = placeUrl || store?.naver_place_url;
-        if (!urlToAnalyze || (!urlToAnalyze.includes("naver.com") && !urlToAnalyze.includes("naver.me"))) {
-            alert("연동된 네이버 플레이스 정보가 없습니다. 가게 관리에서 먼저 등록해주세요.");
-            return;
-        }
-
         setIsAnalyzing(true);
         try {
-            const res = await fetch("/api/place/extract", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: urlToAnalyze }),
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setPlaceData(data);
-                // 분석된 정보를 바탕으로 주제 자동 설정
-                const suggestedTopic = `[${data.name}] ${data.reviewKeywords.slice(0, 3).join(", ")} 특징을 살린 포스팅`;
-                setTopic(suggestedTopic);
+            const supabase = createClient();
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data } = await supabase
+                    .from("stores")
+                    .select("*")
+                    .eq("user_id", user.id)
+                    .single();
 
-                // 필요 시 DB 업데이트 로직 추가 가능 (현재는 세션 내 갱신)
-                alert("매장 최신 정보를 성공적으로 불러왔습니다.");
-            } else {
-                alert(data.error || "분석 중 오류가 발생했습니다.");
+                if (data) {
+                    setStore(data);
+                    // DB에 저장된 최신 정보로 local state 업데이트
+                    setPlaceData({
+                        name: data.name,
+                        category: data.category,
+                        reviewKeywords: data.atmosphere ? data.atmosphere.split(",").map((s: string) => s.trim()) : [],
+                        menus: data.main_products ? data.main_products.split(",").map((s: string) => s.trim()) : [],
+                        location: data.location
+                    });
+                    setPlaceUrl(data.naver_place_url || "");
+
+                    // 주제 자동 설정 (선택 사항)
+                    const suggestedTopic = `[${data.name}] ${data.atmosphere ? data.atmosphere.split(",")[0] : ""} 특징을 살린 포스팅`;
+                    console.log("Updated suggested topic:", suggestedTopic);
+
+                    alert("매장 프로필의 최신 정보를 불러왔습니다.");
+                }
             }
         } catch (err) {
             console.log(err);
-            alert("서버와 통신 중 오류가 발생했습니다.");
+            alert("정보를 불러오는 중 오류가 발생했습니다.");
         } finally {
             setIsAnalyzing(false);
         }
